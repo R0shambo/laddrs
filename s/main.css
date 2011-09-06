@@ -1,0 +1,107 @@
+body {
+  font-family: Verdana, Helvetica, sans-serif;
+  background-color: #ddd;
+}
+
+h1 a {
+  text-decoration: none;
+}
+h1 a:hover {
+  text-decoration: underline;
+}
+
+table {
+  background-color: #fff;
+  border: 2px outset;
+  margin: 5px;
+}
+
+table.player-portrait, table.player-portrait td {
+  border: 0;
+  border-spacing: 0;
+  background-color: inherit;
+  margin: 0;
+  padding: 0;
+}
+
+table.player-portrait {
+  width: 100%;
+}
+
+td.player-portrait {
+  padding: 0 0 0 0;
+  border-spacing: 0;
+}
+
+td.duration {
+  text-align: right;
+}
+
+th, td {
+  border: 2px inset;
+  padding: 2px 5px 2px 5px;
+  vertical-align: middle;
+}
+
+th {
+  background-color: #eee
+}
+
+form {
+  border: 3px outset;
+  background-color: #fff;
+  margin: 5px;
+  padding: 5px;
+}
+
+.current_user * {
+  font-weight: bold;
+  background-color: #eef;
+}
+
+.description, .details {
+  font-style: italic;
+  padding-left: 15px;
+}
+
+.details {
+  font-size: 70%;
+}
+
+.error {
+  background-color: #fdd;
+  margin: 1em;
+  padding: 5px;
+}
+
+.footer {
+  font-size: 60%
+}
+
+.hidden {
+  display: none;
+}
+
+.icon-frame {
+  float: left;
+  margin-right: 5px;
+  dislay: table-cell;
+}
+
+.player-name {
+  diplay: table-cell;
+}
+
+.row2 {
+  background-color: #fbfbfb;
+}
+
+.user_loss * {
+  font-weight: bold;
+  background-color: #fee;
+}
+
+.user_win * {
+  font-weight: bold;
+  background-color: #dfd;
+}

@@ -1,0 +1,12 @@
+<h2>Match Upload</h2>
+{%if ladder.players == 1 %}
+ <div>Once there are multiple members of the ladder, you can begin to upload replays of matches.</div>
+{%else%}
+ {% if errormsg %}<div class="error">{% include "tableflipper.html" %} {{errormsg|escape}}</div>{%endif%}
+ <form action="/upload/{{ladder.key}}" method="POST" enctype="multipart/form-data">
+  <div>Uploaded replays must be 1v1 matches between you and another player in the
+   ladder. Any other uploads will be rejected.</div><br>
+  <div>Replay File: <input type="file" name="replay_file">
+   <input type="submit" name="submit" value="Upload!"></div>
+ </form>
+{%endif%}

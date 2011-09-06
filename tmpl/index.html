@@ -1,0 +1,60 @@
+{% load humanize %}
+{% autoescape on %}
+<html>
+<head>
+ <title>SC2 Laddrs!</title>
+ <meta name="description" content="Starcraft 2 Player Ladder Hosting Service" />
+ <meta name="keywords" content="Starcraft, Starcraft 2, Ladder, Private, Hosting" /> <link type="text/css" rel="stylesheet" href="/s/main.css" />
+ <script src="/s/sorttable.js"></script>
+ {%include "urchin.html"%}
+</head>
+<body>
+ <h1><a href="/">SC2 Laddrs BETA!</a> <g:plusone></g:plusone></h1>
+ {% if user %}
+  <h2>{{user.nickname|capfirst}}'s Ladders</h2>
+  {% if user_ladders %}
+   <table class="sortable">
+    <tr><th>Ladder</th><th>Rank</th><th>Wins</th><th>Losses</th><th>Players</th><th>Region</th><th>Description</th></tr>
+    {% for ladder in user_ladders|dictsort:"name" %}
+     <tr>
+      <td><a href="/ladder/{{ladder.key|urlencode}}">{{ladder.name}}</a></td>
+      <td align="right">{{ladder.user_player_rank|ordinal}}</td>
+      <td align="right">{{ladder.user_player_wins}}</td>
+      <td align="right">{{ladder.user_player_losses}}</td>
+      <td align="right">{{ ladder.players }}</td>
+     <td>{{ ladder.region|upper }}
+      <td>{{ladder.description|truncatewords:12|urlizetrunc:15}}</td>
+     </tr>
+    {% endfor %}
+   </table>
+  {% else %}
+   Aww! You haven't joined any ladders. Join a public ladder below, or
+   <a href="#create">create a ladder below</a>.
+  {% endif %}
+ {% endif %}
+
+ <h2>Public Ladders</h2>
+ {% if public_ladders %}
+  <table class="sortable">
+   <tr><th>Ladder</th><th>Matches</th><th>Players</th><th>Region</th><th>Description</th></tr>
+   {% for ladder in public_ladders|dictsort:"matches_played" %}
+    <tr>
+     <td><a href="/ladder/{{ladder.key|urlencode}}">{{ ladder.name }}</a></td>
+     <td align="right">{{ ladder.matches_played }}</td>
+     <td align="right">{{ ladder.players }}</td>
+     <td>{{ ladder.region|upper }}
+     <td>{{ ladder.description|truncatewords:12|urlizetrunc:15}}</td>
+    </tr>
+   {% endfor %}
+  </table>
+ {% else %}
+  WHTF! No public ladders? I guess everyone is suffering from ladder anxiety.
+  If you are brave enough, you could <a href="#create">create a public ladder below</a>.
+ {% endif %}
+
+ {% include "create_ladder_form.html" %}
+
+ {% include "footer.html" %}
+</body>
+</html>
+{%endautoescape%}

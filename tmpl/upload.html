@@ -1,0 +1,19 @@
+{%autoescape on%}
+<html>
+<head>
+ <title>SC2 Laddrs! - {{ladder.name}} Ladder - Upload</title>
+ <link type="text/css" rel="stylesheet" href="/s/main.css" />
+ <script src="/s/sorttable.js"></script>
+ {%include "urchin.html"%}
+</head>
+<body>
+ <h1><a href="/">SC2 Laddrs BETA!</a> - <a href="/ladder/{{ladder.key}}">{{ladder.name}}</a> - Upload</h1>
+
+ {%if user_player %}
+  {%include "upload_match.html"%}
+ {%endif%}
+ 
+ {% include "footer.html" %}
+</body>
+</html>
+{%endautoescape%}

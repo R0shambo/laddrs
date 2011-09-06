@@ -1,0 +1,37 @@
+<html>
+  <head>
+    <link type="text/css" rel="stylesheet" href="/s/main.css" />
+  </head>
+  <body>
+  <h1>Ladder {{ ladder_name }}</h1>
+  <h2>Players</h2>
+  <table border="1"><tr><th>Handle</th><th>Rating</th><th>GP</th>
+      <th>Since</th></tr>
+    {% for player in players %}
+      <tr>
+      <td><a href="/info/{{ replay.blob_key.key }}">{{ replay.filename }}</a></td>
+      <td>{{ replay.winner }}</td>
+      <td>{{ replay.loser }}</td>
+      <td>{{ replay.mapname }}</td>
+      <td>
+        {% if replay.author %}
+          {{ replay.author.nickname }}
+        {% else %}
+          Anonymous Coward
+        {% endif %}</td>
+      <td>{{ replay.date }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+  <br><br>
+    <form action="{{ upload_url }}" method="POST" enctype="multipart/form-data">
+      <div>Upload Replay: <input type="file" name="file"></div>
+      <div><input type="submit" name="submit" value="Submit"></div>
+    </form>
+    
+    
+
+    <a href="{{ auth_url }}">{{ auth_url_linktext }}</a>
+
+  </body>
+</html>

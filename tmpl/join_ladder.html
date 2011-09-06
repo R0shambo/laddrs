@@ -1,0 +1,17 @@
+{%autoescape on%}
+<html>
+<head>
+ <title>SC2 Laddrs! - {{ ladder.name|escape }} Ladder - Join</title>
+ <link type="text/css" rel="stylesheet" href="/s/main.css" />
+ {%include "urchin.html"%}
+</head>
+<body>
+ <h1><a href="/">SC2 Laddrs BETA!</a> - <a href="/ladder/{{ladder.key}}">{{ladder.name}}
+   {%if not ladder.public %}(Private){%endif%} Ladder</a> - Join
+ </h1>
+ {%include "join_ladder_form.html"%}
+ 
+ {% include "footer.html" %}
+</body>
+</html>
+{%endautoescape%}

@@ -1,0 +1,90 @@
+{% load humanize %}
+{%autoescape on%}
+<html>
+<head>
+ <title>SC2 Laddrs! - {{ladder.name}} Ladder</title>
+ <link type="text/css" rel="stylesheet" href="/s/main.css" />
+ <script src="/s/sorttable.js"></script>
+ {%include "urchin.html"%}
+</head>
+<body>
+ <h1><a href="/">SC2 Laddrs BETA!</a> - {{ladder.name}}
+   {%if not ladder.public %}(Private){%endif%} Ladder <g:plusone></g:plusone>
+ </h1>
+ {%if ladder.public or user_player %}
+  <p class="description">{{ ladder.description|urlize|linebreaks }}</p>
+ {%endif%}
+ <p class="details">This is a
+  {%if ladder.public %}
+   public
+   {%if ladder.invite_only %}
+    invite-only {{ladder.region|upper}} ladder. {%if user_player%}Invite-code for new players: {{ladder.invite_code}}{%endif%}
+   {%else%}
+    {{ladder.region|upper}} ladder.
+   {%endif%}
+  {%else%}
+   private {{ladder.region|upper}} ladder. {%if user_player%}Invite-code for new players: {{ladder.invite_code}}{%endif%}
+  {%endif%}
+
+  {%if user_player.admin%}<br><br>You are an admin for this ladder. <!--[<a href="/manage_ladder/{{ladder.key}}">Manage Ladder</a>]-->{%endif%}
+ </p>
+
+ {%if ladder.public or user_player %}
+  {%if players%}
+   <h2>Players</h2>
+   <table class="sortable"><tr><th>Rank</th><th>Player</th><th>Rating</th><th>Wins</th><th>Losses</th><th>Last Played</th></tr>
+    {% for player in players|dictsortreversed:"rank" %}<tr {%if player.this_is_you %}class="current_user"{%else%}class="{% cycle 'row1' 'row2' %}"{%endif%}>
+     <td align="center">{{forloop.counter|ordinal}}</td>
+     <td class='player-portrait'>{%include "player_portrait.html"%}</td>
+     <td>{{player.rank}}</td>
+     <td>{{player.wins}}</td>
+     <td>{{player.losses}}</td>
+     <td><span class="hidden">{{player.last_played|date:"YmdHis"}} </span>{{player.last_played|naturalday:"M d Y"}}</td>
+    </tr>{%endfor%}
+   </table>
+  {%endif%}
+
+  {%if new_players%}
+   <h3>New Players</h3>
+   <table class="sortable"><tr><th>Player</th><th>Joined</th></tr>
+    {% for player in new_players %}<tr {%if player.this_is_you %}class="current_user"{%else%}class="{% cycle 'row1' 'row2' %}"{%endif%}>
+     <td class='player-portrait'>{%include "player_portrait.html"%}</td>
+     <td><span class="hidden">{{player.joined|date:"YmdHis"}} </span>{{player.joined|naturalday:"M d Y"}}</td>
+    </tr>{%endfor%}
+   </table>
+  {%endif%}
+ {%endif%}
+
+ {%if ladder.public or user_player %}
+  <h2>Match History</h2>
+  {%if matches%}
+   <table class="sortable"><tr><th>Date</th><th>Winner</th><th>Loser</th><th>Map</th><th>Duration</th><th>D/L</th></tr>
+    {% for match in matches|dictsortreversed:"match_date_local" %}
+     <tr {%if match.you_won %}class="user_win"{%else%}
+         {%if match.you_lost %}class="user_loss"{%else%}class="{% cycle 'row1' 'row2' %}"{%endif%}{%endif%}>
+     <td><span class="hidden">{{match.match_date_local|date:"YmdHis"}} </span>
+      {{match.match_date_local|naturalday:"M d Y"}}</td>
+     <td class='player-portrait'>{%with match.winner as player%}{%include "player_portrait.html"%}{%endwith%}</td>
+     <td class='player-portrait'>{%with match.loser as player%}{%include "player_portrait.html"%}{%endwith%}</td>
+     <td><span class="hidden">{{match.mapname|lower}} </span>{{match.mapname}}</td>
+     <td class="duration">{{match.duration}}</td>
+     <td class='player-portrait'><a href="/download/{{ match.key }}/{%if match.filename%}{{match.filename|slugify}}{%else%}{{match.winner.name}}_v_{{match.loser.name}}_{{match.match_date_local|date:"M-d-Y_H-i"}}{%endif%}.SC2Replay" title="Uploaded {{match.uploaded|naturalday:"M d Y"}} by {{match.uploader.name}} - v{{match.version}}"><img alt="Download Replay" src="/s/paperclip.png" height="45"/></a></td>
+    </tr>{%endfor%}
+   </table>
+  {%else%}
+   No one has uploaded any matches yet. {%if user_player %}What are you waiting for? Go play!!{%endif%}
+  {%endif%}
+ {%endif%}
+
+ {%if user_player %}
+  {%include "upload_match.html"%}
+ {%else%}
+  <a name="join"></a>
+  <h3>Join This Ladder</h3>
+  {%include "join_ladder_form.html"%}
+ {%endif%}
+
+ {% include "footer.html" %}
+</body>
+</html>
+{%endautoescape%}

@@ -1,0 +1,31 @@
+application: laddrs
+version: 1
+runtime: python
+api_version: 1
+
+handlers:
+- url: /s
+  static_dir: s
+
+- url: /create_ladder
+  script: create_ladder.py
+  login: required
+
+- url: /ladder/.*
+  script: ladder.py
+
+- url: /join_ladder/.*
+  script: join_ladder.py
+
+- url: /upload/.*
+  script: upload.py
+
+- url: /replay_debug
+  script: replay_debug.py
+  login: required
+
+- url: /download/.*
+  script: download.py
+
+- url: /
+  script: main.py

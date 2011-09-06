@@ -1,0 +1,33 @@
+<a name="create"></a>
+<h3>Create a Ladder</h3>
+{% if user %}
+ {% if errormsg %}<div class="error">{% include "tableflipper.html" %} {{errormsg|escape}}</div>{%endif%}
+ <form action="/create_ladder" method="post">
+  <div>Ladder Name: <input required="required" type="text" name="name" value="{{create_ladder_name|escape}}"/></div>
+  <div>Starcraft 2 Region:
+   <select name="region">
+    <option value="us" {%ifequal create_ladder_region "us"%}selected="selected"{%endifequal%}>US</option>
+    <option value="eu" {%ifequal create_ladder_region "eu"%}selected="selected"{%endifequal%}>EU</option>
+    <option value="kr" {%ifequal create_ladder_region "kr"%}selected="selected"{%endifequal%}>KR</option>
+    <option value="tw" {%ifequal create_ladder_region "tw"%}selected="selected"{%endifequal%}>TW</option>
+    <option value="sea" {%ifequal create_ladder_region "sea"%}selected="selected"{%endifequal%}>SEA</option>
+    <option value="ru" {%ifequal create_ladder_region "ru"%}selected="selected"{%endifequal%}>RU</option>
+    <option value="la" {%ifequal create_ladder_region "la"%}selected="selected"{%endifequal%}>LA</option>
+   </select>
+  </div>
+  <div>Description:<br><textarea required="required" name="description" rows="3" cols="60" spellcheck="true" {%if create_ladder_name%}placeholder="{{create_ladder_name|escape}} is so awesome!"{%endif%}>{{create_ladder_description|escape}}</textarea></div>
+  <div>Public Ladder: <input type="checkbox" name="public" {%if create_ladder_public %}checked{%endif%}/></div>
+  <div>Invite-Only: <input type="checkbox" name="invite_only" {%if create_ladder_invite_only %}checked{%endif%}/></div>
+  
+  <br>
+  <div><b>Your Player Info</b><br>
+  It doesn't make much sense to have a ladder with no players in it. Congratulations! You will start out in 1st place.</div><br>
+  {%include "player_inputs.html"%}  
+  
+  
+  <div><input type="submit" value="Create Ladder"></div>
+ </form>  
+{% else %}
+ You must first <a href="{{ auth_url }}">{{ auth_url_linktext }}</a> if you want
+ to create a ladder.
+{% endif %}
