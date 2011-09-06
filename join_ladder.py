@@ -19,7 +19,7 @@ from laddrslib.models import SC2Ladder, SC2Player
 
 class MainPage(webapp.RequestHandler):
   def get(self, ladder_key):
-    self.redirect("/ladder/%s" % ladder_key)
+    self.redirect("/")
 
   def post(self, ladder_key):
     ladder_key = str(urllib.unquote(ladder_key))
@@ -33,12 +33,13 @@ class MainPage(webapp.RequestHandler):
 
     user = users.get_current_user()
     if not user:
-      self.redirect(users.create_login_url("/ladder/%s" % ladder_key))
+      self.redirect(
+          users.create_login_url("/ladder/%s" % ladder.get_ladder_key()))
       return
 
     # See if this user already belongs to this ladder.
     if ladder.get_user_player(user):
-      self.redirect(users.create_login_url("/ladder/%s" % ladder_key))
+      self.redirect("/ladder/%s" % ladder.get_ladder_key())
       return
 
     invite_code = self.request.get('invite_code')
@@ -57,7 +58,7 @@ class MainPage(webapp.RequestHandler):
             user, ladder, player_name, bnet_id, player_code, admin=False)
         # yay ladder created!
         if player:
-           self.redirect('/ladder/%s' % ladder.key())
+           self.redirect('/ladder/%s' % ladder.get_ladder_key())
            return
         else:
           errormsg = "Umm... not quite sure what has gone wrong."

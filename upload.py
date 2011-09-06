@@ -20,7 +20,7 @@ from laddrslib.models import SC2Ladder, SC2Player, SC2Match
 
 class MainPage(webapp.RequestHandler):
   def get(self, ladder_key):
-    self.redirect("/ladder/%s" % ladder_key)
+    self.redirect("/")
 
   def post(self, ladder_key):
     ladder_key = str(urllib.unquote(ladder_key))
@@ -34,7 +34,8 @@ class MainPage(webapp.RequestHandler):
       
     user = users.get_current_user()
     if not user:
-      self.redirect(users.create_login_url("/ladder/%s" % ladder_key))
+      self.redirect(
+          users.create_login_url("/ladder/%s" % ladder.get_ladder_key))
       return
 
     # See if this user already belongs to this ladder.
@@ -49,7 +50,7 @@ class MainPage(webapp.RequestHandler):
           self.request.get('replay_file'),
           self.request.POST["replay_file"].filename)
       if match:
-         self.redirect('/ladder/%s' % ladder.key())
+         self.redirect('/ladder/%s' % ladder.get_ladder_key())
          return
       else:
         errormsg = "Umm... not quite sure what has gone wrong."

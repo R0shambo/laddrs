@@ -17,7 +17,7 @@
     <tr><th>Ladder</th><th>Rank</th><th>Wins</th><th>Losses</th><th>Players</th><th>Region</th><th>Description</th></tr>
     {% for ladder in user_ladders|dictsort:"name" %}
      <tr>
-      <td><a href="/ladder/{{ladder.key|urlencode}}">{{ladder.name}}</a></td>
+      <td><a href="/ladder/{{ladder.get_ladder_key|urlencode}}">{{ladder.name}}</a></td>
       <td align="right">{{ladder.user_player_rank|ordinal}}</td>
       <td align="right">{{ladder.user_player_wins}}</td>
       <td align="right">{{ladder.user_player_losses}}</td>
@@ -39,7 +39,7 @@
    <tr><th>Ladder</th><th>Matches</th><th>Players</th><th>Region</th><th>Description</th></tr>
    {% for ladder in public_ladders|dictsort:"matches_played" %}
     <tr>
-     <td><a href="/ladder/{{ladder.key|urlencode}}">{{ ladder.name }}</a></td>
+     <td><a href="/ladder/{{ladder.get_ladder_key|urlencode}}">{{ ladder.name }}</a></td>
      <td align="right">{{ ladder.matches_played }}</td>
      <td align="right">{{ ladder.players }}</td>
      <td>{{ ladder.region|upper }}

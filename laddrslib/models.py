@@ -5,6 +5,8 @@ import random
 import re
 import StringIO
 
+from django.template.defaultfilters import slugify
+
 from google.appengine.api import memcache
 from google.appengine.ext import blobstore
 from google.appengine.ext import db
@@ -45,6 +47,13 @@ class SC2Ladder(db.Model):
   players = db.IntegerProperty()
 
   @classmethod
+  def ladder_key(cls, ladder_name):
+    return slugify(ladder_name)
+
+  def get_ladder_key(self):
+    return self.ladder_key(self.name)
+
+  @classmethod
   def gen_ladder_invite_code(cls):
     return random.getrandbits(17)
 
@@ -52,11 +61,13 @@ class SC2Ladder(db.Model):
   def create_ladder(cls, user, ladder_name, region, description, public,
       invite_only, player_name, bnet_id, char_code):
 
+    ladder_name = ladder_name.strip()
+
     if db.is_in_transaction():
       # sanity checks.
       if not ladder_name:
         raise LadderNameMissing
-      if "<" in ladder_name or ">" in ladder_name:
+      if "<" in ladder_name or ">" in ladder_name or not slugify(ladder_name):
         raise InvalidName
       if not description:
         raise LadderDescriptionMissing
@@ -69,8 +80,8 @@ class SC2Ladder(db.Model):
         raise LadderAlreadyExists
 
       ladder = SC2Ladder(
-          key_name=ladder_name.strip().lower(),
-          name=ladder_name.strip(),
+          key_name=cls.ladder_key(ladder_name),
+          name=ladder_name,
           region=region,
           description=description,
           public=public,
@@ -103,7 +114,7 @@ class SC2Ladder(db.Model):
   def get_ladder_by_name(cls, ladder_name):
     """Retrieves a SC2Ladder object from the datastore."""
     return cls.get_ladder(db.Key.from_path(
-        'SC2Ladder', ladder_name.strip().lower()))
+        'SC2Ladder', cls.ladder_key(ladder_name)))
 
   @classmethod
   def get_ladders_for_user(cls, user, retry=True):
@@ -137,13 +148,13 @@ class SC2Ladder(db.Model):
 
   def get_matches(self, user=None):
 
-    matches = memcache.get(self.key().name(), namespace=MC_M4L)
+    matches = memcache.get(self.get_ladder_key(), namespace=MC_M4L)
     if not matches:
-      logging.info("fetching matches for %s", self.name)
+      logging.info("fetching matches for %s", self.get_ladder_key())
       matches = SC2Match.gql(
           "WHERE ANCESTOR IS :1", self.key())
       memcache.add(
-          self.key().name(), matches, namespace=MC_M4L, time=MC_EXP_MED)
+          self.get_ladder_key(), matches, namespace=MC_M4L, time=MC_EXP_MED)
 
     beefy_matches = []
     for match in matches:
@@ -165,18 +176,18 @@ class SC2Ladder(db.Model):
   def get_player(self, player_name, bnet_id):
     """Retrieves a SC2Ladder object from the datastore."""
     return db.get(db.Key.from_path(
-        'SC2Ladder', self.name.lower(),
+        'SC2Ladder', self.get_ladder_key(),
         'SC2Player', SC2Player.player_key(player_name, bnet_id)))
 
   def get_players(self, user=None):
 
-    all_players = memcache.get(self.key().name(), namespace=MC_P4L)
+    all_players = memcache.get(self.get_ladder_key(), namespace=MC_P4L)
     if not all_players:
-      logging.info("fetching players for %s", self.name)
+      logging.info("fetching players for %s", self.get_ladder_key())
       all_players = SC2Player.gql(
           "WHERE ANCESTOR IS :1", self.key())
       memcache.add(
-          self.key().name(), all_players, namespace=MC_P4L, time=MC_EXP_MED)
+          self.get_ladder_key(), all_players, namespace=MC_P4L, time=MC_EXP_MED)
 
     players = []
     new_players = []
@@ -224,7 +235,7 @@ class SC2Ladder(db.Model):
 
   def find_match(self, winner, loser, timestamp):
     return db.get(db.Key.from_path(
-        'SC2Ladder', self.name.lower(),
+        'SC2Ladder', self.get_ladder_key(),
         'SC2Match', SC2Match.match_key(winner, loser, timestamp)))
 
 
@@ -245,16 +256,23 @@ class SC2Player(db.Model):
 
   @classmethod
   def player_key(cls, player_name, bnet_id):
-    return "%s/%s" % (player_name.lower(), bnet_id)
+    return "%s/%s" % (slugify(player_name), bnet_id)
+
+  def get_player_key(self):
+    return self.player_key(self.name, self.bnet_id)
 
   @classmethod
   def create_player(cls, user, ladder, player_name, bnet_id, char_code,
       admin=False):
+    player_name = player_name.strip()
+    bnet_id = bnet_id.strip()
+    char_code = char_code.strip()
     if db.is_in_transaction():
       # sanity checks
       if not player_name:
         raise PlayerNameMissing
-      if "<" in player_name or ">" in player_name or "/" in player_name:
+      if ("<" in player_name or ">" in player_name or "/" in player_name
+          or not slugify(player_name)):
         raise InvalidName
       if not char_code:
         raise CharCodeMissing
@@ -265,7 +283,7 @@ class SC2Player(db.Model):
       if not bnet_id.isdigit():
         raise InvalidPlayerBNetId
 
-      if cls.get_player(ladder.name, player_name, bnet_id):
+      if cls.get_player(ladder, player_name, bnet_id):
         raise PlayerAlreadyExists
 
       player = SC2Player(
@@ -294,10 +312,10 @@ class SC2Player(db.Model):
     return rv
 
   @classmethod
-  def get_player(cls, ladder_name, player_name, bnet_id):
+  def get_player(cls, ladder, player_name, bnet_id):
     """Retrieves a SC2Ladder object from the datastore."""
     return db.get(db.Key.from_path(
-        'SC2Ladder', ladder_name.lower(),
+        'SC2Ladder', ladder.get_ladder_key(),
         'SC2Player', cls.player_key(player_name, bnet_id)))
 
   def get_ladder(self):
@@ -365,6 +383,7 @@ class SC2Match(db.Model):
      parsed from the replay."""
   uploader = db.ReferenceProperty(SC2Player, collection_name='uploads')
   replay = db.BlobProperty(required=True)
+  filename = db.StringProperty()
   uploaded = db.DateTimeProperty(auto_now_add=True)
   winner = db.ReferenceProperty(SC2Player, collection_name='w_matches')
   winner_race = db.StringProperty(required=True)
@@ -463,6 +482,10 @@ class SC2Match(db.Model):
       ladder.matches_played = ladder.matches_played + 1
       ladder.put()
 
+      filename = slugify(filename[:filename.rfind('.')])
+      if filename:
+        filename = filename + '.SC2Replay'
+
       match = SC2Match(
           parent=ladder,
           key_name=cls.match_key(winner, loser, replay.timestamp()),
@@ -492,7 +515,7 @@ class SC2Match(db.Model):
   @classmethod
   def match_key(cls, winner, loser, timestamp):
     return "%s|%s|%s" % (
-        winner.key().name(), loser.key().name(), str(timestamp))
+        winner.get_player_key(), loser.get_player_key(), str(timestamp))
 
 
 
@@ -548,5 +571,5 @@ def _create_player_transaction(user, ladder, player_name, bnet_id, char_code,
   return SC2Player.create_player(user, ladder, player_name, bnet_id, char_code,
     admin)
 
-def _create_match_transaction(ladder, user_player, replay_data):
-  return SC2Match.create_match(ladder, user_player, replay_data)
+def _create_match_transaction(ladder, user_player, replay_data, filename):
+  return SC2Match.create_match(ladder, user_player, replay_data, filename)

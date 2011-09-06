@@ -68,7 +68,7 @@
      <td class='player-portrait'>{%with match.loser as player%}{%include "player_portrait.html"%}{%endwith%}</td>
      <td><span class="hidden">{{match.mapname|lower}} </span>{{match.mapname}}</td>
      <td class="duration">{{match.duration}}</td>
-     <td class='player-portrait'><a href="/download/{{ match.key }}/{%if match.filename%}{{match.filename|slugify}}{%else%}{{match.winner.name}}_v_{{match.loser.name}}_{{match.match_date_local|date:"M-d-Y_H-i"}}{%endif%}.SC2Replay" title="Uploaded {{match.uploaded|naturalday:"M d Y"}} by {{match.uploader.name}} - v{{match.version}}"><img alt="Download Replay" src="/s/paperclip.png" height="45"/></a></td>
+     <td class='player-portrait'><a href="/download/{{ match.key }}/{%if match.filename%}{{match.filename}}{%else%}{{match.winner.name}}_v_{{match.loser.name}}_{{match.match_date_local|date:"M-d-Y_H-i"}}.SC2Replay{%endif%}" title="Uploaded {{match.uploaded|naturalday:"M d Y"}} by {{match.uploader.name}} - v{{match.version}}"><img alt="Download Replay" src="/s/sc2replay-icon.png" height="45"/></a></td>
     </tr>{%endfor%}
    </table>
   {%else%}

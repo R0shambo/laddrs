@@ -45,7 +45,7 @@ class MainPage(webapp.RequestHandler):
               invite_only, player_name, player_bnet_id, player_code)
       # yay ladder created!
       if ladder:
-         self.redirect('/ladder/%s' % ladder.key())
+         self.redirect('/ladder/%s' % ladder.get_ladder_key())
          return
       else:
         errormsg = "Umm... not quite sure what has gone wrong."

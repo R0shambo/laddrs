@@ -17,9 +17,9 @@ from laddrslib import util
 from laddrslib.models import SC2Ladder, SC2Player, SC2Match
 
 class MainPage(webapp.RequestHandler):
-  def get(self, ladder_key):
-    ladder_key = str(urllib.unquote(ladder_key))
-    ladder = SC2Ladder.get_ladder(ladder_key)
+  def get(self, ladder_name):
+    ladder_key = str(urllib.unquote(ladder_name))
+    ladder = SC2Ladder.get_ladder_by_name(ladder_name)
 
     # Return 404 if ladder could not be found.
     if not ladder:

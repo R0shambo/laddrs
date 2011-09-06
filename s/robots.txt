@@ -1,0 +1,5 @@
+User-agent: *
+Disallow: /create_ladder
+Disallow: /download/
+Disallow: /join_ladder/
+Disallow: /upload/

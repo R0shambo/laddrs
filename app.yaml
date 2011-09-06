@@ -7,6 +7,10 @@ handlers:
 - url: /s
   static_dir: s
 
+- url: /robots.txt
+  static_files: s/robots.txt
+  upload: s/robots.txt
+
 - url: /create_ladder
   script: create_ladder.py
   login: required
