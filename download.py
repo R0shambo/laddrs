@@ -17,17 +17,21 @@ from laddrslib import util
 from laddrslib.models import SC2Ladder, SC2Player, SC2Match
 
 class MainPage(webapp.RequestHandler):
-  def get(self, match_key):
-    match_key = str(urllib.unquote(match_key))
-    match = db.get(match_key)
+  def get(self, ladder_name, match_key):
+    ladder_key = str(urllib.unquote(ladder_name))
+    ladder = SC2Ladder.get_ladder_by_name(ladder_name)
+    # Return 404 if ladder could not be found.
+    if not ladder:
+      self.error(404)
+      self.response.out.write("<h1>Match Replay Not Found</h1>")
+      return
+    match = ladder.get_match(str(urllib.unquote(match_key)))
 
     # Return 404 if ladder could not be found.
     if not match:
       self.error(404)
       self.response.out.write("<h1>Match Replay Not Found</h1>")
       return
-    
-    ladder = match.parent()
 
     user = users.get_current_user()
 
@@ -41,12 +45,12 @@ class MainPage(webapp.RequestHandler):
         self.response.out.write("<h1>Match Replay Not Found</h1>")
         return
 
-    self.response.headers['Content-Type'] = 'application/octet-stream' 
+    self.response.headers['Content-Type'] = 'application/octet-stream'
     self.response.out.write(match.replay)
 
 
 application = webapp.WSGIApplication([
-  ('/download/([^/]+)/[^/.]+\.SC2Replay', MainPage),
+  ('/download/([^/]+)/([^/]+)/[^/.]+\.SC2Replay', MainPage),
 ], debug=True)
 
 

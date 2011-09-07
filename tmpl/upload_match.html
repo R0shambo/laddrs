@@ -2,7 +2,9 @@
 {%if ladder.players == 1 %}
  <div>Once there are multiple members of the ladder, you can begin to upload replays of matches.</div>
 {%else%}
- {% if errormsg %}<div class="error">{% include "tableflipper.html" %} {{errormsg|escape}}</div>{%endif%}
+ {% if errormsg %}<div class="error">{% include "tableflipper.html" %} {{errormsg|escape}}
+  If you believe this to be a mistake in upload processing, please send your replay file
+  to <a href="/faq?category=REPLAY;summary={{errormsg|urlencode}};message=%3CPlease+describe+why+you+think+this+is+an+error.+Also+attach+your+replay+file+below.%3E%0D%0A%0D%0AULKEY%3A{{ladder.key|urlencode}}#what-if-my-question-is-not-answered">SC2 Laddrs Support</a>.</div>{%endif%}
  <form action="/upload/{{ladder.key}}" method="POST" enctype="multipart/form-data">
   <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
   <div>Uploaded replays must be matches between you and other players in the

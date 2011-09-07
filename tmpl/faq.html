@@ -33,9 +33,10 @@
   <div class="answer">A: Contact SC2 Laddrs Support using the form below!
   {% if user %}
    {% if errormsg %}<div class="error">{% include "tableflipper.html" %} {{errormsg|escape}}</div>{%endif%}
-   <form method="post" enctype="multipart/form-data">
+   <form action="/faq#what-if-my-question-is-not-answered" method="post" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
-    <div>Category: <select name="category" onclick="this.form.attachment.disabled=this.value!='REPLAY';">
+    <!-- {{ category }} -->
+    <div>Category: <select name="category">
       <option value="MISC" {%ifequal category "MISC"%}selected="selected"{%endifequal%}>Miscellaneous Feedback</option>
       <option value="FTR" {%ifequal category "FTR"%}selected="selected"{%endifequal%}>Feature Request</option>
       <option value="REPLAY" {%ifequal category "REPLAY"%}selected="selected"{%endifequal%}>Trouble Uploading Replay</option>
@@ -48,7 +49,7 @@
     <div>
      <textarea required="required" name="message" rows="30" cols="100" spellcheck="true"
       placeholder="Seriously, Man! It's just awesome. So, I guess my question is, how'd you get so awesome? -Love, {{user.nickname}}">{{message}}</textarea></div>
-    <div class="attachment">Attachment: <input disabled="disabled" type="file" name="attachment"></div>
+    <div class="attachment">Attachment: <input type="file" name="attachment"></div>
     <div><input type="submit" value="Send!"></div>
    </form>
   {% else %}<br>

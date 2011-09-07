@@ -37,23 +37,12 @@ class MainPage(webapp.RequestHandler):
 
     (players, new_players, user_player) = ladder.get_players(user)
 
-    if self.request.get('quit_ladder'):
-      if user_player and util.csrf_protect(self):
-        if ladder.remove_player(user_player):
-          util.set_butter("You have left %s." % ladder.name)
-      self.redirect(self.request.path)
-      return
-
-    matches = None
-    if ladder.matches_played:
-      matches = ladder.get_matches(user)
-
     manage_ladder = False
     if manage:
       if user_player and user_player.admin:
         manage_ladder = True
         if util.csrf_protect(self):
-        # all management command handling goes here:
+          # all management command handling goes here:
           player_key = self.request.get('player')
           match_key = str(urllib.unquote(self.request.get('match')))
           if player_key:
@@ -77,6 +66,10 @@ class MainPage(webapp.RequestHandler):
       else:
         self.redirect("/ladder/%s" % ladder.get_ladder_key())
         return
+
+    matches = None
+    if ladder.matches_played:
+      matches = ladder.get_matches(user)
 
     template_values = util.add_user_tmplvars(self, {
       'ladder': ladder,

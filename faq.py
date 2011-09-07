@@ -23,7 +23,11 @@ SUPPORT_EMAIL="sc2.laddrs@gmail.com"
 
 class MainPage(webapp.RequestHandler):
   def get(self):
-    template_values = util.add_user_tmplvars(self, {})
+    template_values = util.add_user_tmplvars(self, {
+      'category': self.request.get('category'),
+      'summary': self.request.get('summary'),
+      'message': self.request.get('message'),
+    })
     path = os.path.join(os.path.dirname(__file__), 'tmpl/faq.html')
     self.response.out.write(template.render(path, template_values))
 

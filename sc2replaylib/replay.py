@@ -1,3 +1,4 @@
+import hashlib
 import logging
 
 from mpyq import MPQArchive
@@ -23,7 +24,7 @@ class Replay:
     'FFA': 'Free for all',
     'Cust': 'Custom Game'
   }
-  
+
   GAME_SPEED = {
     'Slow': 'Slow',
     'Slor': 'Slower',
@@ -31,7 +32,7 @@ class Replay:
     'Fasr': 'Faster',
     'Fast': 'Fast'
   }
-  
+
   GAME_MATCHING = {
     'Priv': 'Private',
     'Amm':  'Auto Match Maker',
@@ -46,64 +47,64 @@ class Replay:
   def __init__(self, replay_file):
     self.teams        = []
     self.replay_file    = replay_file
-    
+
     self.parsers      = {}
 
     try:
       archive = MPQArchive(self.replay_file)
-            
+
       files = archive.extract()
 
       # bootstrap the right parsers, expand here for different version parsing too
-      
+
       self.parsers['header'] = DetailsParser(archive.header['user_data_header']['content'])
-      
+
       for file_name, data in files.iteritems():
-        logging.info("replay file %s" % file_name)
+        #logging.info("replay file %s" % file_name)
         if(file_name == self.FILES['attributes']):
           self.parsers[file_name] = AttributesParser(data)
-            
+
         if(file_name == self.FILES['details']):
           self.parsers[file_name] = DetailsParser(data)
-    
+
       teams = self.attribute(2001)
       num_teams = 2
 
       if teams == '1v1':
         teams_lookup_attribute = 2002
-        
+
       elif teams == '2v2':
         teams_lookup_attribute = 2003
-        
+
       elif teams == '3v3':
         teams_lookup_attribute = 2004
-        
+
       elif teams == '4v4':
         teams_lookup_attribute = 2005
-        
+
       elif teams == 'FFA':
         teams_lookup_attribute = 2006
         num_teams = 10
-        
+
       elif teams == '6v6':
         teams_lookup_attribute = 2008
-      
+
       # create the teams before the players
       for i in range(num_teams):
         self.teams.append(Team(i+1))
-      
+
       # bootstrap the player object with some raw data
       for i, player_details in enumerate(self.parsers[self.FILES['details']].parse()[0]):
-        
+
         player = Player(player_details, self.player_attributes(i+1))
-                
+
         # team
-        players_team = player.attribute(teams_lookup_attribute)               
+        players_team = player.attribute(teams_lookup_attribute)
         self.teams[int(players_team[1])-1].players.append(player)
-        
+
     except:
       raise
-    
+
   def attribute(self, key):
     """Get a single attribute by it's key
 
@@ -123,7 +124,7 @@ class Replay:
 
     # no attribute found!
     raise Sc2replaylibException("no global attribute found with key '%d'" % (key))
-  
+
   def player_attributes(self, player_num):
     """Get all player attributes for a given player
 
@@ -140,7 +141,7 @@ class Replay:
       if attrib[2] == player_num:
         rc.append(attrib)
     return rc
-  
+
   def attributes(self):
     """Retrieve a list of *global attributes*"""
 
@@ -152,7 +153,7 @@ class Replay:
     :param raw: If the raw value is wanted over the consistent and un-localized value
     :type raw: Boolean
     :rtype: This is a list of possible return values for a replay, all of which are of type ``String``:
-    
+
      * ``1v1`` --- Represents a one versus one
      * ``2v2`` --- Represents a game with two teams composed of two players each
      * ``3v3`` --- Represents a game with two teams composed of three players each
@@ -160,19 +161,19 @@ class Replay:
      * ``Free for all`` --- Represents a game with no teams, but can have anywhere from two to eight players
      * ``Custom Game`` --- Represents a custom game where the regular starcraft 2 multiplayer rules do not apply
     """
-    
+
     rc = self.attribute(2001)
     if not raw:
       rc = self.GAME_TEAMS[rc]
     return rc
-    
+
   def game_speed(self, raw=False):
     """Holds the raw game speed value for the currently loaded replay.
 
     :param raw: If the raw value is wanted over the consistent and un-localized value
     :type raw: Boolean
     :rtype: This is a list of possible return values for a replay, all of which are of type ``String``:
-    
+
      * ``Slow`` --- Represents the slowest game speed available
      * ``Slower`` --- Represents the 2nd slowest game speed
      * ``Normal`` --- Represents the normal game speed
@@ -185,7 +186,7 @@ class Replay:
       rc = self.GAME_SPEED[rc]
     return rc
 
-  
+
   def game_matching(self, raw=False):
     """Holds how the players were matched together to play.
 
@@ -202,61 +203,75 @@ class Replay:
     if not raw:
       rc = self.GAME_MATCHING[rc]
     return rc
-  
+
   def map_human_friendly(self):
     """Holds the name of the map file as it is found in the replay.
-    
+
     :rtype: String --- Raw
-    
+
     .. warning::
       This attribute holds the *raw* value exactly as it is retrieved from the replay file.
     """
     return self.parsers[self.FILES['details']].parse()[1]
 
+  def identifier(self):
+    """Attempts to return a semi-unique identifier for the replay. Different copies of the same
+    replay (i.e. replays saved by different players) will have the same unique id.
+
+    :rtype: String --- Raw
+    """
+    id = hashlib.sha1()
+    for s in self.parsers[self.FILES['details']].parse()[10]:
+      id.update(s)
+    for s in self.parsers[self.FILES['details']].parse()[0]:
+      id.update(str(s))
+    id.update(str(self.parsers[self.FILES['attributes']].parse()))
+    return id.hexdigest()
+
   def version(self):
     """Holds a list containing the version numbers for the copy of Starcraft 2 that recorded the replay.
-    
+
     The list is in the following sequence:
-    
+
     ``[major, minor, patch]``
-    
+
     :rtype: List
     """
-    
+
     return self.parsers['header'].parse()[1][1:4]
 
   def revision(self):
     """Holds the revision number of Starcraft 2 that recorded the repaly.  Can also be refered to as the build number.
-    
+
     :rtype: String --- Raw
     """
-    
+
     return self.parsers['header'].parse()[1][4:5][0]
 
   def duration(self):
     """Holds the duration (in seconds) of the Starcraft 2 replay.
-    
+
     :rtype: String --- Raw
     """
-    
+
     return self.parsers['header'].parse()[3] / 22
 
 
   def timestamp(self):
     """Holds the timestamp of when the replay was recorded in a datetime object.
-    
+
     :rtype: datetime
     """
-    
+
     from datetime import datetime
     return datetime.fromtimestamp((self.parsers[self.FILES['details']].parse()[5] - 116444735995904000) / 10**7)
 
   def timestamp_local(self):
     """Holds the timestamp of when the replay was recorded in a datetime object.
-    
+
     :rtype: datetime
     """
-    
+
     from datetime import datetime
     # whoa it really is an offset
     if self.parsers[self.FILES['details']].parse()[6] < 116444735995904000:
@@ -266,20 +281,20 @@ class Replay:
 
   def timezone_offset(self):
     """Holds an positive or negative integer which represents the timezone offset of where the replay was recorded.
-    
+
     :rtype: Integer
     """
     return (self.parsers[self.FILES['details']].parse()[6] / 10**7 ) / (60 * 60)
 
 class Team:
   """This class represents a grouping of Player objects that make up one team found in a game.
-  
+
   This object is automatically created and filled with players upon creation of a :class:`Replay` object.
 
   :param team_number: an arbitrary number to identify the team.
   :type team_number: Integer
   """
-  
+
   OUTCOME = {
     0: "Unknown",
     1: "Won",
@@ -320,10 +335,10 @@ class Player:
 
   This object is automatically created and filled with players upon creation of a :class:`Replay` object.
 
-  :param details: the output of the :class:`DetailsParser` parse function 
+  :param details: the output of the :class:`DetailsParser` parse function
   :type details: List
 
-  :param attributes: the output of the :class:`AttributesParser` parse function 
+  :param attributes: the output of the :class:`AttributesParser` parse function
   :type attributes: List
 
   """
@@ -388,7 +403,7 @@ class Player:
      * ``Human`` --- Represents that the player is a human.
      * ``Computer`` --- Represents that the player is non human.
     """
-    
+
     rc = self.attribute(500)
     if not raw:
       rc = self.TYPE[rc]
@@ -396,19 +411,19 @@ class Player:
 
   def handle(self):
     """Returns the players nick name, as it was seen durring the game.
-    
+
     :rtype: This is a ``String``
     """
-    
+
     return self.details[0]
-    
+
   def bnet_id(self):
     """Returns a list of bnet identification numbers.
-    
+
     :rtype: list
     """
     return self.details[1][4]
-    
+
   def race(self, raw=False):
     """Returns the type of race the player is.
 
@@ -428,29 +443,29 @@ class Player:
     if race == 'RAND':
       if self.details[2] == 'Terran':
         return 'Rand-Terran'
-      
+
       elif self.details[2] == 'Protoss':
         return 'Rand-Protoss'
-      
+
       elif self.details[2] == 'Zerg':
         return 'Rand-Zerg'
-    
+
     elif race == 'Terr':
       return 'Terran'
-      
+
     elif race == 'Prot':
       return 'Protoss'
-      
+
     elif race == 'Zerg':
       return 'Zerg'
-    
+
   def color_argb(self):
     """Returns a list of 4 integers that represent the color in ARGB format.
-    
+
     :rtype: List
     """
     return self.details[3]
-    
+
   def color_name(self, raw=False):
     """Returns the color name in plain English.
 
@@ -474,19 +489,19 @@ class Player:
     * ``Dark Grey``
     * ``Pink``
     """
-    
+
     rc = self.attribute(3002)
     if not raw:
       rc = self.COLORS[rc]
     return rc
-    
+
   def handicap(self):
     """Returns a number between 0 to 100 that represents if the player has chosen to handicap themselves.
-    
+
     :rtype: Integer
     """
     return  self.details[6]
-  
+
   def outcome(self, raw=False):
     """Returns if the player won or lost the match.
 
@@ -504,7 +519,7 @@ class Player:
     if not raw:
       rc = self.OUTCOME[rc]
     return rc
-  
+
   def attribute(self, key):
     """Get a single attribute for a player by it's key
 
