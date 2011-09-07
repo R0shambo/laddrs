@@ -12,12 +12,12 @@ handlers:
   expiration: "1d"
 
 - url: /favicon.ico
-  static_files: s/robots.txt
-  upload: s/robots.txt
-
-- url: /robots.txt
   static_files: s/sc2replay-icon.png
   upload: s/sc2replay-icon.png
+
+- url: /robots.txt
+  static_files: s/robots.txt
+  upload: s/robots.txt
 
 - url: /create_ladder
   script: create_ladder.py
