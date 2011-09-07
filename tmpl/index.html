@@ -18,9 +18,9 @@
     {% for ladder in user_ladders|dictsort:"name" %}
      <tr>
       <td><a href="/ladder/{{ladder.get_ladder_key|urlencode}}">{{ladder.name}}</a></td>
-      <td align="right">{{ladder.user_player_rank|ordinal}}</td>
-      <td align="right">{{ladder.user_player_wins}}</td>
-      <td align="right">{{ladder.user_player_losses}}</td>
+      <td align="right">{%if ladder.user_player.matches_played%}{{ladder.user_player.ranking|ordinal}}{%else%}Unranked{%endif%}</td>
+      <td align="right">{{ladder.user_player.wins}}</td>
+      <td align="right">{{ladder.user_player.losses}}</td>
       <td align="right">{{ ladder.players }}</td>
      <td>{{ ladder.region|upper }}
       <td>{{ladder.description|truncatewords:12|urlizetrunc:15}}</td>

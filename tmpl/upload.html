@@ -7,7 +7,7 @@
  {%include "urchin.html"%}
 </head>
 <body>
- <h1><a href="/">SC2 Laddrs BETA!</a> - <a href="/ladder/{{ladder.key}}">{{ladder.name}}</a> - Upload</h1>
+ <h1><a href="/">SC2 Laddrs BETA!</a> - <a href="/ladder/{{ladder.get_ladder_key}}">{{ladder.name}}</a> - Upload</h1>
 
  {%if user_player %}
   {%include "upload_match.html"%}

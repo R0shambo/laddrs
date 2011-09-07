@@ -54,27 +54,27 @@ class MainPage(webapp.RequestHandler):
       errormsg = "Invalid invite-code entered. Please try again."
     else:
       try:
-        player = SC2Player.create_player(
-            user, ladder, player_name, bnet_id, player_code, admin=False)
+        player = ladder.add_player(
+            player_name, bnet_id, player_code, user, admin=False)
         # yay ladder created!
         if player:
            self.redirect('/ladder/%s' % ladder.get_ladder_key())
            return
         else:
           errormsg = "Umm... not quite sure what has gone wrong."
-      except models.PlayerNameMissing:
+      except SC2Player.NameMissing:
         errormsg = "Derp! You forgot your Character Name."
-      except models.InvalidName:
-        errormsg = "I see what you are doing there, and I don't like it."
-      except models.CharCodeMissing:
+      except SC2Player.InvalidName:
+        errormsg = "Punctuation characters are not allowed in player names."
+      except SC2Player.CharCodeMissing:
         errormsg = "Your Battle.net Character Code is required so other members of the ladder can find you. It will only be shown to members of the ladder."
-      except models.InvalidCharCode:
+      except SC2Player.InvalidCharCode:
         errormsg = "Character Code must be a three-digit number."
-      except models.PlayerBNetIdMissing:
+      except SC2Player.BNetIdMissing:
         errormsg = "Your Battle.net ID is required to verify replay uploads."
-      except models.InvalidPlayerBNetId:
+      except SC2Player.InvalidBNetId:
         errormsg = "Battle.Net ID must be a six or seven digit number."
-      except models.PlayerAlreadyExists:
+      except SC2Player.AlreadyExists:
         errormsg = "Player %s/%s is already a member of this ladder." % (
             player_name, bnet_id)
 

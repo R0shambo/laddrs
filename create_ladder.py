@@ -13,8 +13,7 @@ from google.appengine.ext import webapp
 from google.appengine.ext.webapp.util import run_wsgi_app
 
 from laddrslib import util
-from laddrslib import models
-from laddrslib.models import SC2Ladder
+from laddrslib.models import SC2Ladder, SC2Player
 
 class MainPage(webapp.RequestHandler):
   def get(self):
@@ -49,25 +48,27 @@ class MainPage(webapp.RequestHandler):
          return
       else:
         errormsg = "Umm... not quite sure what has gone wrong."
-    except models.LadderNameMissing:
+    except SC2Ladder.NameMissing:
       errormsg = "Derp! Ladder Name is required, Silly."
-    except models.InvalidName:
-      errormsg = "I see what you are doing there, and I don't like it."
-    except models.InvalidRegion:
+    except SC2Ladder.InvalidName:
+      errormsg = "HTML is not allowed in ladder name. It also needs to consist of something besides punctuation and whitespace."
+    except SC2Ladder.InvalidRegion:
       errormsg = "Invalid Battle.net Region specified. Are you h4x0ring?"
-    except models.LadderDescriptionMissing:
+    except SC2Ladder.DescriptionMissing:
       errormsg = "Description is required. The least you could do is fill in something tweet worthy."
-    except models.PlayerNameMissing:
+    except SC2Player.NameMissing:
       errormsg = "Can't have a ladder without players, so please fill-in your Starcraft 2 Character Name."
-    except models.CharCodeMissing:
+    except SC2Player.InvalidName:
+      errormsg = "Punctuation characters are not allowed in player names."
+    except SC2Player.CharCodeMissing:
       errormsg = "Your Battle.net Character Code is required so other members of the ladder can find you. It will only be shown to members of the ladder."
-    except models.InvalidCharCode:
+    except SC2Player.InvalidCharCode:
       errormsg = "Character Code must be a three-digit number."
-    except models.PlayerBNetIdMissing:
+    except SC2Player.BNetIdMissing:
       errormsg = "Your Battle.net ID is required to verify replay uploads."
-    except models.InvalidPlayerBNetId:
+    except SC2Player.InvalidBNetId:
       errormsg = "Battle.Net ID must be a six or seven digit number."
-    except models.LadderAlreadyExists:
+    except SC2Ladder.AlreadyExists:
       errormsg = "There is already a ladder with the name %s." % name
 
     template_values = util.add_user_tmplvars(self, {

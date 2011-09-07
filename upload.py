@@ -45,10 +45,13 @@ class MainPage(webapp.RequestHandler):
       self.error(403)
       self.response.out.write("<h1>Upload Forbidden</h1>")
 
+    filename = None
+    if hasattr(self.request.POST["replay_file"], 'filename'):
+      filename = self.request.POST["replay_file"].filename
+
     try:
-      match = SC2Match.create_match(ladder, user_player,
-          self.request.get('replay_file'),
-          self.request.POST["replay_file"].filename)
+      match = ladder.add_match(user_player,
+          self.request.get('replay_file'), filename)
       if match:
          self.redirect('/ladder/%s' % ladder.get_ladder_key())
          return

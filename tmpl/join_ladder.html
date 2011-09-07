@@ -6,7 +6,7 @@
  {%include "urchin.html"%}
 </head>
 <body>
- <h1><a href="/">SC2 Laddrs BETA!</a> - <a href="/ladder/{{ladder.key}}">{{ladder.name}}
+ <h1><a href="/">SC2 Laddrs BETA!</a> - <a href="/ladder/{{ladder.get_ladder_key}}">{{ladder.name}}
    {%if not ladder.public %}(Private){%endif%} Ladder</a> - Join
  </h1>
  {%include "join_ladder_form.html"%}

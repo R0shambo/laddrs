@@ -1,8 +1,16 @@
+import base64
+import os
+
+from google.appengine.api import memcache
 from google.appengine.api import users
+
+MC_EXP_LONG=86400
+MC_CSRF='csrf-tokens'
 
 def add_user_tmplvars(handler, tmplvars):
   user = users.get_current_user()
   tmplvars['user'] = user
+  tmplvars['csrf_token'] = get_csrf_token()
   if user:
     tmplvars['auth_url'] = users.create_logout_url(handler.request.uri)
     tmplvars['auth_url_linktext'] = 'Logout %s' % user.nickname()
@@ -12,51 +20,17 @@ def add_user_tmplvars(handler, tmplvars):
 
   return tmplvars
 
-def ordinal(value):
-  """
-  Converts zero or a *postive* integer (or their string 
-  representations) to an ordinal value.
+def get_csrf_token():
+  user = users.get_current_user()
+  if user:
+    token = memcache.get(user.user_id(), namespace=MC_CSRF)
+    if token:
+      return token
+    token = base64.urlsafe_b64encode(os.urandom(12))
+    memcache.set(user.user_id(), token, namespace=MC_CSRF, time=MC_EXP_LONG)
+    return token
 
-  >>> for i in range(1,13):
-  ...     ordinal(i)
-  ...     
-  u'1st'
-  u'2nd'
-  u'3rd'
-  u'4th'
-  u'5th'
-  u'6th'
-  u'7th'
-  u'8th'
-  u'9th'
-  u'10th'
-  u'11th'
-  u'12th'
-
-  >>> for i in (100, '111', '112',1011):
-  ...     ordinal(i)
-  ...     
-  u'100th'
-  u'111th'
-  u'112th'
-  u'1011th'
-
-  """
-  try:
-    value = int(value)
-  except ValueError:
-    return value
-
-  if value % 100//10 != 1:
-    if value % 10 == 1:
-      ordval = u"%d%s" % (value, "st")
-    elif value % 10 == 2:
-      ordval = u"%d%s" % (value, "nd")
-    elif value % 10 == 3:
-      ordval = u"%d%s" % (value, "rd")
-    else:
-      ordval = u"%d%s" % (value, "th")
-  else:
-    ordval = u"%d%s" % (value, "th")
-
-  return ordval
+def csrf_protect(handler):
+  if handler.request.get('csrf_token') == get_csrf_token():
+    return True
+  return False

@@ -18,6 +18,10 @@ handlers:
 - url: /ladder/.*
   script: ladder.py
 
+- url: /manage_ladder/.*
+  script: ladder.py
+
+
 - url: /join_ladder/.*
   script: join_ladder.py
 
