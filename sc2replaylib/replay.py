@@ -41,7 +41,8 @@ class Replay:
 
   FILES = {
     'attributes': 'replay.attributes.events',
-    'details':    'replay.details'
+    'details':    'replay.details',
+    'game':       'replay.game.events',
   }
 
   def __init__(self, replay_file):
@@ -66,6 +67,9 @@ class Replay:
 
         if(file_name == self.FILES['details']):
           self.parsers[file_name] = DetailsParser(data)
+
+        if (file_name == self.FILES['game']):
+          self.parsers[file_name] = data
 
       teams = self.attribute(2001)
       num_teams = 2
@@ -226,6 +230,7 @@ class Replay:
     for s in self.parsers[self.FILES['details']].parse()[0]:
       id.update(str(s))
     id.update(str(self.parsers[self.FILES['attributes']].parse()))
+    id.update(self.parsers[self.FILES['game']][:22])
     return id.hexdigest()
 
   def version(self):

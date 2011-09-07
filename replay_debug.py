@@ -112,6 +112,8 @@ class MainPage(webapp.RequestHandler):
       self.response.out.write(cgi.escape(pprint.pformat(replay.parsers[replay.FILES['details']].parse())))
       self.response.out.write("\n==== ATTRIBUTES ====\n")
       self.response.out.write(cgi.escape(pprint.pformat(replay.parsers[replay.FILES['attributes']].parse())))
+      self.response.out.write("\n==== GAME %d ====\n" % len(replay.parsers[replay.FILES['game']]))
+      self.response.out.write(cgi.escape(pprint.pformat(replay.parsers[replay.FILES['game']][:22])))
 
       self.response.out.write('</pre>')
     except:
