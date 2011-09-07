@@ -89,11 +89,11 @@
    {%if players%}
     <h2>Players</h2>
     <table class="sortable"><tr><th>Rank</th><th>Player</th>{%if user_player%}<th>Nickname</th>{%endif%}<th>Rating</th><th>Wins</th><th>Losses</th><th>Last Played</th>{%if manage_ladder%}<th>Admin</th>{%endif%}</tr>
-     {% for player in players|dictsortreversed:"rating" %}<tr {%if player.this_is_you %}class="current_user"{%endif%}>
+     {% for player in players|dictsortreversed:"fuzzy_rating" %}<tr {%if player.this_is_you %}class="current_user"{%endif%}>
       <td align="center">{{forloop.counter|ordinal}}</td>
       <td class='player-portrait'>{%include "player_portrait.html"%}</td>
       {%if user_player%}<td>{%if player.email%}<a href="mailto:{{player.email}}">{%endif%}{{player.nickname}}{%if player.email%}</a>{%endif%}</td>{%endif%}
-      <td>{{player.rating}}</td>
+      <td>{{player.fuzzy_rating|floatformat:0}}</td>
       <td>{{player.wins}}</td>
       <td>{{player.losses}}</td>
       <td title="{{player.last_played}}"><span class="hidden">{{player.last_played|date:"YmdHis"}} </span>{{player.last_played|naturalday:"M d Y"|capfirst}}</td>
@@ -149,7 +149,8 @@
 
   {%if ladder.public or user_player %}
    <h2>Match History</h2>
-   {%if matches%}
+    <div style="display:inline-block">
+    {%if matches%}
     <table class="sortable"><tr><th>Date</th><th>Winner</th><th>Loser</th><th>Map</th><th>Duration</th><th>D/L</th>{%if manage_ladder%}<th>Admin</th>{%endif%}</tr>
      {% for match in matches %}
       <tr {%if match.you_won %}class="user_win"{%else%}
@@ -170,6 +171,12 @@
       {%endif%}
      </tr>{%endfor%}
     </table>
+    {%if matches|length > 1%}
+         <a style="margin-top:3px;padding-right:10px;float:right;text-decoration:none;color:black;font-weight:bold" href="/download/{{ladder.get_ladder_key|urlencode}}.zip">
+      Download&nbsp;All&nbsp;{{matches|length}}&nbsp;Replays&nbsp;<img style="vertical-align:middle" src="/s/zip-icon.png" height="45" width="45" border="0" alt="Download Zip of All Replays" title="Download Zip of All Replays" /></a>
+    {%endif%}
+
+    </div>
    {%else%}
     Apparently, the combined APM for this ladder is a big fat ZERO. No one has played a match. {%if user_player %}What are you waiting for? Go play!!{%endif%}
    {%endif%}

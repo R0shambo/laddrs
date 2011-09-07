@@ -49,35 +49,25 @@ class MainPage(webapp.RequestHandler):
     if hasattr(self.request.POST["replay_file"], 'filename'):
       filename = self.request.POST["replay_file"].filename
 
+    rejected = []
+
     if util.csrf_protect(self):
-      try:
-        match = ladder.add_match(user_player,
-            self.request.get('replay_file'), filename,
-            force=self.request.get('force_upload'))
-        if match:
-          self.redirect('/ladder/%s' % ladder.get_ladder_key())
-          util.set_butter(
-              "Match replay accepted. Player rankings adjusted.")
-          util.track_pageview('/goal/match_upload.html')
-          return
-        else:
-          errormsg = "Umm... not quite sure what has gone wrong."
-      except SC2Match.LoserNotInLadder, e:
-        errormsg = "Loser (%s) is not a member of the ladder." % e.args
-      except SC2Match.MatchAlreadyExists:
-        errormsg = "This match has already been uploaded."
-      except SC2Match.NotReplayOfUploader:
-        errormsg = "You may only upload your own replays."
-      except SC2Match.ReplayIsTooOld:
-        errormsg = "Uploaded replay is too old. Stop living in the past."
-      except SC2Match.ReplayHasNoWinner:
-        errormsg = "Replay has no winner."
-      except SC2Match.ReplayParseFailed:
-        errormsg = "Unable to parse uploaded replay file."
-      except SC2Match.TooManyPlayers, e:
-        errormsg = "Only 1v1 replays allowed. Uploaded replay has %d players." % e.args
-      except SC2Match.WinnerNotInLadder, e:
-        errormsg = "Winner (%s) is not a member of the ladder." % e.args
+      (accepted, rejected) = ladder.add_matches(user_player,
+          self.request.params.getall('replay_file'),
+          force=self.request.get('force_upload'))
+      if accepted and len(accepted) > 0:
+        util.set_onetime('uploads_accepted', accepted)
+        util.set_onetime('uploads_rejected', rejected)
+        s = 's' if len(accepted) > 1 else ''
+        util.set_butter(
+            "Match replay%s accepted. Player rankings adjusted." % s)
+        util.track_pageview('/goal/match_upload.html')
+        self.redirect('/ladder/%s#upload' % ladder.get_ladder_key())
+        return
+      else:
+        s = 's' if len(rejected) > 1 else ''
+        errormsg = "No replay%s accepted." % s
+
     else:
       errormsg = "Session timed out."
 
@@ -85,6 +75,7 @@ class MainPage(webapp.RequestHandler):
       'errormsg': errormsg,
       'ladder': ladder,
       'user_player': user_player,
+      'uploads_rejected': rejected,
     })
 
     path = os.path.join(os.path.dirname(__file__), 'tmpl/upload.html')

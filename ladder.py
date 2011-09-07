@@ -1,10 +1,5 @@
-import os
-os.environ['DJANGO_SETTINGS_MODULE'] = 'settings'
-
-from google.appengine.dist import use_library
-use_library('django', '1.2')
-
 import logging
+import os
 import re
 import time
 import urllib
@@ -79,6 +74,9 @@ class MainPage(webapp.RequestHandler):
       'new_players': new_players,
       'matches': matches,
       'manage_ladder': manage_ladder,
+      'uploads_accepted': util.get_onetime('uploads_accepted'),
+      'uploads_rejected': util.get_onetime('uploads_rejected'),
+
     })
 
     path = os.path.join(os.path.dirname(__file__), 'tmpl/ladder.html')

@@ -1,15 +1,40 @@
+<a name="upload"></a>
 <h2>Match Upload</h2>
 {%if ladder.players == 1 %}
  <div>Once there are multiple members of the ladder, you can begin to upload replays of matches.</div>
 {%else%}
- {% if errormsg %}<div class="error">{% include "tableflipper.html" %} {{errormsg|escape}}
+
+ {%if uploads_accepted%}
+  <div class="uploads_accepted">
+   <b>Uploads Accepted:</b>
+   <ul>
+   {%for file in uploads_accepted%}
+    <li>{{file}}</li>
+   {%endfor%}
+   </ul>
+  </div>
+ {%endif%}
+
+ {%if errormsg%}
+  <div class="error">{% include "tableflipper.html" %} {{errormsg|escape}}</div>
+ {%endif%}
+ {%if uploads_rejected%}
+  <div class="error">
+   <b>Uploads Rejected:</b>
+   <ul>
+   {%for file in uploads_rejected%}
+    <li>{{file}}</li>
+   {%endfor%}
+   </ul>
   If you believe this to be a mistake in upload processing, please send your replay file
-  to <a href="/faq?category=REPLAY;summary={{errormsg|urlencode}};message=%3CPlease+describe+why+you+think+this+is+an+error.+Also+attach+your+replay+file+below.%3E%0D%0A%0D%0AULKEY%3A{{ladder.key|urlencode}}#what-if-my-question-is-not-answered">SC2 Laddrs Support</a>.</div>{%endif%}
+  to <a href="/faq?category=REPLAY;summary={{errormsg|urlencode}};message=%3CPlease+describe+why+you+think+this+is+an+error.+Also+attach+your+replay+file+below.%3E%0D%0A%0D%0AULKEY%3A{{ladder.key|urlencode}}#what-if-my-question-is-not-answered">SC2 Laddrs Support</a>.</div>
+ {%endif%}
+
  <form action="/upload/{{ladder.key}}" method="POST" enctype="multipart/form-data">
   <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
   <div>Uploaded replays must be matches between you and other players in the
    ladder. Any other uploads will be rejected.</div><br>
-  <div>Replay File: <input type="file" name="replay_file">
+  <div>Replay File(s): <input type="file" name="replay_file" multiple="multiple" required="required">
    <input type="submit" name="submit" value="Upload!"></div>
   {%if user_player.admin%}
    <div>Force Upload: <input type="checkbox" name="force_upload" />

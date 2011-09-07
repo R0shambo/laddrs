@@ -87,6 +87,11 @@ indexes:
 - kind: SC2Player
   ancestor: yes
   properties:
+  - name: glicko_rating
+
+- kind: SC2Player
+  ancestor: yes
+  properties:
   - name: rank
 
 - kind: SC2Player

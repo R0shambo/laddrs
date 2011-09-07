@@ -1,5 +1,5 @@
 application: laddrs
-version: 3-1-5
+version: 4-0-0
 runtime: python
 api_version: 1
 
@@ -9,6 +9,7 @@ builtins:
 handlers:
 - url: /s
   static_dir: s
+  expiration: "1d"
 
 - url: /favicon.ico
   static_files: s/robots.txt

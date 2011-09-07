@@ -6,9 +6,8 @@ from google.appengine.api import memcache
 from google.appengine.api import users
 
 MC_EXP_LONG=86400
-MC_BUTTER='butter'
+MC_ONETIME="onetime-vars"
 MC_CSRF='csrf-tokens'
-MC_TRACK='track-pageview'
 
 def add_user_tmplvars(handler, tmplvars):
   user = users.get_current_user()
@@ -43,33 +42,31 @@ def csrf_protect(handler):
     return True
   return False
 
-def set_butter(msg):
+def set_onetime(name, msg):
   user = users.get_current_user()
   if user:
-    memcache.set(user.user_id(), msg, namespace=MC_BUTTER, time=MC_EXP_LONG)
+    memcache.set("%s|%s" % (user.user_id(), name), msg, namespace=MC_ONETIME)
     return True
+
+def get_onetime(name):
+  user = users.get_current_user()
+  if user:
+    msg = memcache.get("%s|%s" % (user.user_id(), name), namespace=MC_ONETIME)
+    if msg:
+      memcache.delete("%s|%s" % (user.user_id(), name), namespace=MC_ONETIME)
+      return msg
+
+def set_butter(msg):
+  return set_onetime('util_butter', msg)
 
 def get_butter():
-  user = users.get_current_user()
-  if user:
-    butter = memcache.get(user.user_id(), namespace=MC_BUTTER)
-    if butter:
-      memcache.delete(user.user_id(), namespace=MC_BUTTER)
-      return butter
+  return get_onetime('util_butter')
 
 def track_pageview(path):
-  user = users.get_current_user()
-  if user:
-    memcache.set(user.user_id(), path, namespace=MC_TRACK, time=MC_EXP_LONG)
-    return True
+  return set_onetime('util_track_pageview', path)
 
 def get_track_pageview():
-  user = users.get_current_user()
-  if user:
-    track = memcache.get(user.user_id(), namespace=MC_TRACK)
-    if track:
-      memcache.delete(user.user_id(), namespace=MC_TRACK)
-      return track
+  return get_onetime('util_track_pageview')
 
 def in_production():
   """Detects if app is running in production.

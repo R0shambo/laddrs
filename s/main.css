@@ -191,6 +191,12 @@ ol {
   font-size: 70%;
 }
 
+.uploads_accepted {
+  background-color: #dfd;
+  margin: 1em;
+  padding: 5px;
+}
+
 .error {
   background-color: #fdd;
   margin: 1em;
