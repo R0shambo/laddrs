@@ -3,6 +3,17 @@ body {
   background-color: #ddd;
 }
 
+div.answer {
+  margin-left: 2em;
+  margin-right: 10em;
+}
+
+
+div.answer:first-line {
+  font-weight: bold;
+  font-size: 1.5em;
+}
+
 input.invite_only ~ div.regen_invite_code {
   display: none;
 }
@@ -55,11 +66,16 @@ th {
   background-color: #eee
 }
 
-form {
+form, div.contents {
   border: 3px outset;
   background-color: #fff;
   margin: 5px;
   padding: 5px;
+  display: inline-block;
+}
+
+ol {
+  margin-right: 2em;
 }
 
 .current_user * {
@@ -121,6 +137,13 @@ form {
   margin: 1em;
   padding: 5px;
 }
+
+.butter {
+  background-color: #ffd;
+  margin: 1em;
+  padding: 5px;
+}
+
 
 .footer {
   font-size: 60%

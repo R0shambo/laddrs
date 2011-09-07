@@ -25,13 +25,13 @@ class MainPage(webapp.RequestHandler):
   def post(self, ladder_key):
     ladder_key = str(urllib.unquote(ladder_key))
     ladder = SC2Ladder.get_ladder(ladder_key)
-    
+
     # Return 404 if ladder could not be found.
     if not ladder:
       self.error(404)
       self.response.out.write("<h1>Ladder Not Found</h1>")
       return
-      
+
     user = users.get_current_user()
     if not user:
       self.redirect(
@@ -55,8 +55,10 @@ class MainPage(webapp.RequestHandler):
             self.request.get('replay_file'), filename,
             force=self.request.get('force_upload'))
         if match:
-           self.redirect('/ladder/%s' % ladder.get_ladder_key())
-           return
+          self.redirect('/ladder/%s' % ladder.get_ladder_key())
+          util.set_butter(
+              "Match replay accepted. Player rankings adjusted.")
+          return
         else:
           errormsg = "Umm... not quite sure what has gone wrong."
       except SC2Match.ReplayParseFailed:
@@ -81,7 +83,7 @@ class MainPage(webapp.RequestHandler):
       'ladder': ladder,
       'user_player': user_player,
     })
- 
+
     path = os.path.join(os.path.dirname(__file__), 'tmpl/upload.html')
     self.response.out.write(template.render(path, template_values))
 

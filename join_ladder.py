@@ -59,6 +59,7 @@ class MainPage(webapp.RequestHandler):
         # yay ladder created!
         if player:
            self.redirect('/ladder/%s' % ladder.get_ladder_key())
+           util.set_butter("You have joined %s." % ladder.name)
            return
         else:
           errormsg = "Umm... not quite sure what has gone wrong."

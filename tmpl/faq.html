@@ -1,0 +1,64 @@
+{% autoescape on %}
+<html>
+<head>
+ <title>SC2 Laddrs! - Frequently Asked Questions</title>
+ <meta name="description" content="Starcraft 2 Player Ladder Hosting Service" />
+ <meta name="keywords" content="Starcraft, Starcraft 2, Ladder, Private, Hosting" /> <link type="text/css" rel="stylesheet" href="/s/main.css" />
+ <script src="/s/sorttable.js"></script>
+ {%include "urchin.html"%}
+</head>
+<body>
+ <h1><a href="/">SC2 Laddrs BETA!</a> - Frequently Asked Questions <g:plusone></g:plusone></h1>
+ {%if butter%}<div class="butter">{{butter}}</div>{%endif%}
+ <div class="contents">
+   <ol>
+    {%for faq in faqs%}
+     <li><a href="#{{faq.question|truncatewords:"7"|slugify}}">{{faq.question}}</a></li>
+    {%endfor%}
+    <li><a href="#what-if-my-question-is-not-answered">What if my question is not answered in this FAQ?</a></li>
+   </ul>
+ </div>
+ {%if site_admin%}
+ <h2 class="question">Q: Am I a Site Admin?</h2>
+ <div class="answer">A: Yes!</div>
+ {%endif%}
+
+ {%for faq in faqs%}
+  <a name="{{faq.question|truncatewords:"7"|slugify}}"></a>
+  <h2 class="question">Q: {{faq.question}}</h2>
+  <div class="answer">{{ladder.description|urlize|linebreaks}}</div>
+ {%endfor%}
+  <a name="what-if-my-question-is-not-answered"></a>
+  <h2 class="question">Q: What if my question is not answered above?</h2>
+  <div class="answer">A: Contact SC2 Laddrs Support using the form below!
+  {% if user %}
+   {% if errormsg %}<div class="error">{% include "tableflipper.html" %} {{errormsg|escape}}</div>{%endif%}
+   <form method="post" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
+    <div>Category: <select name="category" onclick="this.form.attachment.disabled=this.value!='REPLAY';">
+      <option value="MISC" {%ifequal category "MISC"%}selected="selected"{%endifequal%}>Miscellaneous Feedback</option>
+      <option value="FTR" {%ifequal category "FTR"%}selected="selected"{%endifequal%}>Feature Request</option>
+      <option value="REPLAY" {%ifequal category "REPLAY"%}selected="selected"{%endifequal%}>Trouble Uploading Replay</option>
+      <option value="BUG" {%ifequal category "BUG"%}selected="selected"{%endifequal%}>Bug Report</option>
+     </select>
+    </div>
+    <div>From: {{user.email}}</div>
+    <div>To: SC2 Laddrs Support</div>
+    <div>Summary: <input required="required" type="text" name="summary" size="60" value="{{summary}}" placeholder="Just wanted to say SC2 Laddrs is awesome!"/></div>
+    <div>
+     <textarea required="required" name="message" rows="30" cols="100" spellcheck="true"
+      placeholder="Seriously, Man! It's just awesome. So, I guess my question is, how'd you get so awesome? -Love, {{user.nickname}}">{{message}}</textarea></div>
+    <div class="attachment">Attachment: <input disabled="disabled" type="file" name="attachment"></div>
+    <div><input type="submit" value="Send!"></div>
+   </form>
+  {% else %}<br>
+   But first, you must <a href="{{ auth_url }}">{{ auth_url_linktext }}</a> if you want
+   to contact us. Why do we want you to login first? So our time isn't wasted by
+   <a href="http://www.spamlaws.com/contact-form-spam.html">spammers</a> filling out our contact form.
+  {% endif %}
+  </div>
+
+ {% include "footer.html" %}
+</body>
+</html>
+{%endautoescape%}

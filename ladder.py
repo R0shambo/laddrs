@@ -39,10 +39,11 @@ class MainPage(webapp.RequestHandler):
 
     if self.request.get('quit_ladder'):
       if user_player and util.csrf_protect(self):
-        ladder.remove_player(user_player)
+        if ladder.remove_player(user_player):
+          util.set_butter("You have left %s." % ladder.name)
       self.redirect(self.request.path)
       return
-    
+
     matches = None
     if ladder.matches_played:
       matches = ladder.get_matches(user)
@@ -58,15 +59,19 @@ class MainPage(webapp.RequestHandler):
           if player_key:
             player = ladder.get_player_by_key(player_key)
             if self.request.get('action') == "demote_player":
-              player.set_admin(False)
+              if player.set_admin(False):
+                util.set_butter("%s is no longer an Admin." % player.name)
             elif self.request.get('action') == "promote_player":
-              player.set_admin(True)
+              if player.set_admin(True):
+                util.set_butter("Promoted %s to Admin." % player.name)
             elif self.request.get('action') == "delete_player":
-              ladder.remove_player(player)
+              if ladder.remove_player(player):
+                util.set_butter("%s removed from ladder." % player.name)
           elif match_key:
             match = db.get(match_key)
             if self.request.get('action') == "delete_match":
-              ladder.remove_match(match)
+              if ladder.remove_match(match):
+                util.set_butter("Match removed.")
           self.redirect("/manage_ladder/%s" % ladder.get_ladder_key())
           return
       else:
@@ -106,11 +111,12 @@ class MainPage(webapp.RequestHandler):
     user_player = ladder.get_user_player(user)
     if user_player and user_player.admin and util.csrf_protect(self):
       try:
-        ladder.update_ladder(
-          self.request.get('description'),
-          bool(self.request.get('public')),
-          bool(self.request.get('invite_only')),
-          bool(self.request.get('regen_invite_code')))
+        if ladder.update_ladder(
+            self.request.get('description'),
+            bool(self.request.get('public')),
+            bool(self.request.get('invite_only')),
+            bool(self.request.get('regen_invite_code'))):
+          util.set_butter("Ladder info updated.")
       except:
         logging.exception("manage_ladder update failed")
 

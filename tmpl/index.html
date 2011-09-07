@@ -10,6 +10,7 @@
 </head>
 <body>
  <h1><a href="/">SC2 Laddrs BETA!</a> <g:plusone></g:plusone></h1>
+ {%if butter%}<div class="butter">{{butter}}</div>{%endif%}
  {% if user %}
   <h2>{{user.nickname|capfirst}}'s Ladders</h2>
   {% if user_ladders %}
@@ -18,7 +19,7 @@
     {% for ladder in user_ladders|dictsort:"name" %}
      <tr>
       <td><a href="/ladder/{{ladder.get_ladder_key|urlencode}}">{{ladder.name}}</a></td>
-      <td align="right">{%if ladder.user_player.matches_played%}{{ladder.user_player.ranking|ordinal}}{%else%}Unranked{%endif%}</td>
+      <td align="right">{%if ladder.user_player.matches_played%}{{ladder.user_player.rank|ordinal}}{%else%}Unranked{%endif%}</td>
       <td align="right">{{ladder.user_player.wins}}</td>
       <td align="right">{{ladder.user_player.losses}}</td>
       <td align="right">{{ ladder.players }}</td>

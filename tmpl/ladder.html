@@ -11,6 +11,7 @@
  <h1><a href="/">SC2 Laddrs BETA!</a> - {{ladder.name}}
    {%if not ladder.public %}(Private){%endif%} Ladder <g:plusone></g:plusone>
  </h1>
+ {%if butter%}<div class="butter">{{butter}}</div>{%endif%}
  {%if manage_ladder %}
   <form method="post">
    <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
@@ -50,10 +51,10 @@
   {%if players%}
    <h2>Players</h2>
    <table class="sortable"><tr><th>Rank</th><th>Player</th><th>Rating</th><th>Wins</th><th>Losses</th><th>Last Played</th>{%if manage_ladder%}<th>Admin</th>{%endif%}</tr>
-    {% for player in players|dictsortreversed:"rank" %}<tr {%if player.this_is_you %}class="current_user"{%endif%}>
+    {% for player in players|dictsortreversed:"rating" %}<tr {%if player.this_is_you %}class="current_user"{%endif%}>
      <td align="center">{{forloop.counter|ordinal}}</td>
      <td class='player-portrait'>{%include "player_portrait.html"%}</td>
-     <td>{{player.rank}}</td>
+     <td>{{player.rating}}</td>
      <td>{{player.wins}}</td>
      <td>{{player.losses}}</td>
      <td><span class="hidden">{{player.last_played|date:"YmdHis"}} </span>{{player.last_played|naturalday:"M d Y"}}</td>
@@ -69,7 +70,7 @@
         You
        {%endif%}
       </td>
-     {%endif%}     
+     {%endif%}
     </tr>{%endfor%}
    </table>
   {%endif%}
@@ -100,7 +101,7 @@
         You
        {%endif%}
       </td>
-     {%endif%}     
+     {%endif%}
     </tr>{%endfor%}
    </table>
   {%endif%}
@@ -115,8 +116,8 @@
          {%if match.you_lost %}class="user_loss"{%endif%}{%endif%}>
      <td><span class="hidden">{{match.match_date_local|date:"YmdHis"}} </span>
       {{match.match_date_local|naturalday:"M d Y"}}</td>
-     <td class='player-portrait'>{%with match.winner as player%}{%include "player_portrait.html"%}{%endwith%}</td>
-     <td class='player-portrait'>{%with match.loser as player%}{%include "player_portrait.html"%}{%endwith%}</td>
+     <td class='player-portrait'>{%for player in match.winners%}{%include "player_portrait.html"%}{%endfor%}</td>
+     <td class='player-portrait'>{%for player in match.losers%}{%include "player_portrait.html"%}{%endfor%}</td>
      <td><span class="hidden">{{match.mapname|lower}} </span>{{match.mapname}}</td>
      <td class="duration">{{match.duration}}</td>
      <td class='player-portrait'><a href="/download/{{ match.key }}/{%if match.filename%}{{match.filename}}{%else%}{{match.winner.name}}_v_{{match.loser.name}}_{{match.match_date_local|date:"M-d-Y_H-i"}}.SC2Replay{%endif%}" title="Uploaded {{match.uploaded|naturalday:"M d Y"}} by {{match.uploader.name}} - v{{match.version}}"><img alt="Download Replay" src="/s/sc2replay-icon.png" height="45"/></a></td>
@@ -124,7 +125,7 @@
       <td align="center">
        <a class="delete-button" onClick='return confirm("Are you sure you want to delete match?");' href="?action=delete_match;match={{ match.key }};csrf_token={{csrf_token}}"><img border="0" height="40" src="/s/delete.png" alt="Delete Match" title="Delete Match" /></a>
       </td>
-     {%endif%}     
+     {%endif%}
     </tr>{%endfor%}
    </table>
   {%else%}

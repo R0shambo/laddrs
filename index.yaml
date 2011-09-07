@@ -63,3 +63,8 @@ indexes:
   - name: rank
   - name: joined
     direction: desc
+
+- kind: SC2Player
+  ancestor: yes
+  properties:
+  - name: rating

@@ -45,6 +45,7 @@ class MainPage(webapp.RequestHandler):
       # yay ladder created!
       if ladder:
          self.redirect('/ladder/%s' % ladder.get_ladder_key())
+         util.set_butter("%s ladder created successfully!" % ladder.name)
          return
       else:
         errormsg = "Umm... not quite sure what has gone wrong."

@@ -28,7 +28,6 @@ MC_M4L="matches-for-ladder"
 MC_P4L="players-for-ladder"
 MC_SC2RP="sc2rank-player"
 
-
 DEFAULT_ELO_RATING=1600
 
 REGION_RE = re.compile("^(us|eu|kr|tw|sea|ru|la)$")
@@ -133,7 +132,7 @@ class SC2Ladder(db.Model):
       self.invite_only = invite_only
       if regen_invite_code:
         self.invite_code = self.gen_ladder_invite_code()
-      
+
       self.put()
 
       memcache.delete(users.get_current_user().user_id(), namespace=MC_L4U)
@@ -173,7 +172,7 @@ class SC2Ladder(db.Model):
           bnet_id=bnet_id,
           code=char_code,
           user_id=user.user_id(),
-          rank=0,
+          rating=0,
           matches_played=0,
           wins=0,
           losses=0,
@@ -227,60 +226,74 @@ class SC2Ladder(db.Model):
       except:
         raise SC2Match.ReplayParseFailed
 
-      # replays must be 1v1 since this is a 1v1 ladder site afterall.
-      number_of_players = (len(replay.teams[0].players) +
-          len(replay.teams[1].players))
-      if number_of_players != 2:
-        raise SC2Match.TooManyPlayers(number_of_players)
-
       # determine the winner and loser players.
-      if replay.teams[0].players[0].outcome() == 'Won':
-        replay_winner = replay.teams[0].players[0]
-        replay_loser = replay.teams[1].players[0]
-      elif replay.teams[1].players[0].outcome() == 'Won':
-        replay_winner = replay.teams[1].players[0]
-        replay_loser = replay.teams[0].players[0]
+      if replay.teams[0].outcome() == 'Won':
+        replay_winners = replay.teams[0].players
+        replay_losers = replay.teams[1].players
+      elif replay.teams[1].outcome() == 'Won':
+        replay_winners = replay.teams[1].players
+        replay_losers = replay.teams[0].players
       else:
         raise SC2Match.ReplayHasNoWinner
 
       # now check that players are in the ladder.
-      winner = self.get_player(replay_winner.handle(), replay_winner.bnet_id())
-      if not winner:
-        raise SC2Match.WinnerNotInLadder(
-            "%s/%s" % (replay_winner.handle(), replay_winner.bnet_id()))
-      loser = self.get_player(replay_loser.handle(), replay_loser.bnet_id())
-      if not loser:
-        raise SC2Match.LoserNotInLadder(
-            "%s/%s" % (replay_loser.handle(), replay_loser.bnet_id()))
+      winners = []
+      winner_races = []
+      winner_colors = []
+      user_in_replay = False
+      for rp in replay_winners:
+        player = self.get_player(rp.handle(), rp.bnet_id())
+        if not player:
+          raise SC2Match.WinnerNotInLadder(
+              "%s/%s" % (rp.handle(), rp.bnet_id()))
+        winners.append(player)
+        winner_races.append(rp.race())
+        winner_colors.append(rp.color_name())
+        if user_player.user_id == player.user_id:
+          user_in_replay = True
+
+      losers = []
+      loser_races = []
+      loser_colors = []
+      for rp in replay_losers:
+        player = self.get_player(rp.handle(), rp.bnet_id())
+        if not player:
+          raise SC2Match.LoserNotInLadder(
+              "%s/%s" % (rp.handle(), rp.bnet_id()))
+        losers.append(player)
+        loser_races.append(rp.race())
+        loser_colors.append(rp.color_name())
+        if user_player.user_id == player.user_id:
+          user_in_replay = True
 
       # make sure that uploader is either the winner or loser.
       if (force and user_player.admin):
         # allow upload if admin user and force upload checked.
         pass
-      elif (user_player.user_id != winner.user_id
-          and user_player.user_id != loser.user_id):
+      elif (not user_in_replay):
         raise SC2Match.NotReplayOfUploader
 
       # make sure this replay was not previously uploaded
-      existing_match = self.find_match(winner, loser, replay.timestamp())
+      existing_match = self.find_match(
+          winners[0], losers[0], replay.timestamp())
       if existing_match:
         raise SC2Match.MatchAlreadyExists
 
-      (winner_delta, loser_delta) = SC2Player.adjust_ranking(winner, loser)
+      (winner_delta, loser_delta) = SC2Player.adjust_rating(winners, losers)
 
-      winner.matches_played = winner.matches_played + 1
-      winner.wins = winner.wins + 1
-      if not winner.last_played or winner.last_played < replay.timestamp_local():
-        winner.last_played = replay.timestamp_local()
+      for p in winners:
+        p.matches_played = p.matches_played + 1
+        p.wins = p.wins + 1
+        if not p.last_played or p.last_played < replay.timestamp_local():
+          p.last_played = replay.timestamp_local()
+        p.put()
 
-      loser.matches_played = loser.matches_played + 1
-      loser.losses = loser.losses + 1
-      if not loser.last_played or loser.last_played < replay.timestamp_local():
-        loser.last_played = replay.timestamp_local()
-
-
-      winner.put()
-      loser.put()
+      for p in losers:
+        p.matches_played = p.matches_played + 1
+        p.losses = p.losses + 1
+        if not p.last_played or p.last_played < replay.timestamp_local():
+          p.last_played = replay.timestamp_local()
+        p.put()
 
       self.matches_played = self.matches_played + 1
       self.put()
@@ -291,17 +304,17 @@ class SC2Ladder(db.Model):
 
       match = SC2Match(
           parent=self,
-          key_name=SC2Match.match_key(winner, loser, replay.timestamp()),
+          key_name=SC2Match.match_key(winners[0], losers[0], replay.timestamp()),
           uploader=user_player,
           replay=db.Blob(replay_data),
           filename=filename,
-          winner=winner,
-          winner_race=replay_winner.race(),
-          winner_color=replay_winner.color_name(),
+          winner_keys=[e.key() for e in winners],
+          winner_races=winner_races,
+          winner_colors=winner_colors,
           winner_delta=winner_delta,
-          loser=loser,
-          loser_race=replay_loser.race(),
-          loser_color=replay_loser.color_name(),
+          loser_keys=[e.key() for e in losers],
+          loser_races=loser_races,
+          loser_colors=loser_colors,
           loser_delta=loser_delta,
           mapname=replay.map_human_friendly(),
           match_date_utc=replay.timestamp(),
@@ -310,9 +323,9 @@ class SC2Ladder(db.Model):
           version='.'.join([str(n) for n in replay.version()]))
 
       match.put()
-      
-      memcache.delete(winner.user_id, namespace=MC_L4U)
-      memcache.delete(loser.user_id, namespace=MC_L4U)
+
+      for p in winners + losers:
+        memcache.delete(p.user_id, namespace=MC_L4U)
       memcache.delete(self.get_ladder_key(), namespace=MC_P4L)
       memcache.delete(self.get_ladder_key(), namespace=MC_M4L)
       if self.public:
@@ -328,31 +341,33 @@ class SC2Ladder(db.Model):
         raise SC2Match.InvalidRemoval(
             "%s != %s" % match.parent().get_ladder_key(), self.get_ladder_key())
 
-      winner = match.winner
-      winner.matches_played = winner.matches_played - 1
-      winner.wins = winner.wins - 1
-      if winner.matches_played:
-        winner.rank = winner.rank - match.winner_delta
-      else:
-        winner.rank = 0
-      loser = match.loser
-      loser.matches_played = loser.matches_played - 1
-      loser.losses = loser.losses - 1
-      if loser.matches_played:
-        loser.rank = loser.rank + match.loser_delta
-      else:
-        loser.rank = 0
-
-      winner.put()
-      loser.put()
+      winners = [db.get(k) for k in match.winner_keys]
+      for p in winners:
+        p.matches_played = p.matches_played - 1
+        p.wins = p.wins - 1
+        if p.matches_played:
+          p.rating = p.rating - match.winner_delta
+          if p.rating < 1: p.rating = 1
+        else:
+          p.rating = 0
+        p.put()
+      losers = [db.get(k) for k in match.loser_keys]
+      for p in losers:
+        p.matches_played = p.matches_played - 1
+        p.losses = p.losses - 1
+        if p.matches_played:
+          p.rating = p.rating - match.loser_delta
+        else:
+          p.rating = 0
+        p.put()
 
       self.matches_played = self.matches_played - 1
       self.put()
-      
+
       match.delete()
 
-      memcache.delete(winner.user_id, namespace=MC_L4U)
-      memcache.delete(loser.user_id, namespace=MC_L4U)
+      for p in winners + losers:
+        memcache.delete(p.user_id, namespace=MC_L4U)
       memcache.delete(self.get_ladder_key(), namespace=MC_P4L)
       memcache.delete(self.get_ladder_key(), namespace=MC_M4L)
       if self.public:
@@ -387,9 +402,9 @@ class SC2Ladder(db.Model):
         ladder = player.get_ladder()
         logging.info("got ladder %s" % ladder.get_ladder_key())
         ladder.user_player = player
-        ladder.user_player.ranking = SC2Player.gql(
-            "WHERE ANCESTOR IS :1 AND rank > :2",
-            ladder.key(), player.rank).count() + 1
+        ladder.user_player.rank = SC2Player.gql(
+            "WHERE ANCESTOR IS :1 AND rating > :2",
+            ladder.key(), player.rating).count() + 1
         ladders.append(ladder)
       # try adding to memcache
       if (not memcache.add(
@@ -413,17 +428,30 @@ class SC2Ladder(db.Model):
 
     beefy_matches = []
     for match in matches:
-      match.winner.portrait = match.winner.get_portrait(45)
-      match.winner.race = match.winner_race
-      match.winner.color = match.winner_color
-      match.loser.portrait = match.loser.get_portrait(45)
-      match.loser.race = match.loser_race
-      match.loser.color = match.loser_color
-      if user:
-        if match.winner.user_id == user.user_id():
+      winner_keys = match.winner_keys
+      match.winners = []
+      for k in winner_keys:
+        i = len(match.winners)
+        player = db.get(k)
+        player.race = match.winner_races[i]
+        player.color = match.winner_colors[i]
+        player.portrait = player.get_portrait(45)
+        match.winners.append(player)
+        if user and player.user_id == user.user_id():
           match.you_won = True
-        elif match.loser.user_id == user.user_id():
+
+      loser_keys = match.loser_keys
+      match.losers = []
+      for k in loser_keys:
+        i = len(match.losers)
+        player = db.get(k)
+        player.race = match.loser_races[i]
+        player.color = match.loser_colors[i]
+        player.portrait = player.get_portrait(45)
+        match.losers.append(player)
+        if user and player.user_id == user.user_id():
           match.you_lost = True
+
       beefy_matches.append(match)
 
     return beefy_matches
@@ -508,12 +536,12 @@ class SC2Player(db.Model):
   user_id = db.StringProperty(required=True)
   joined = db.DateTimeProperty(auto_now_add=True)
   admin = db.BooleanProperty()
-  rank = db.IntegerProperty(required=True)
+  rating = db.IntegerProperty()
   matches_played = db.IntegerProperty(required=True)
   wins = db.IntegerProperty(required=True)
   losses = db.IntegerProperty(required=True)
   last_played = db.DateTimeProperty()
-  
+
   class AlreadyExists(Exception):
     pass
   class BNetIdMissing(Exception):
@@ -546,7 +574,7 @@ class SC2Player(db.Model):
       self.admin = admin
       self.put()
       memcache.delete(self.get_ladder().get_ladder_key(), namespace=MC_P4L)
-      return admin
+      return True
 
   def sc2rank_player_key(self):
     return "%s/%s/%s" % (self.parent().region, self.name, self.bnet_id)
@@ -587,32 +615,45 @@ class SC2Player(db.Model):
             self.name, self.bnet_id, exc_info=True)
 
   @classmethod
-  def adjust_ranking(cls, winner, loser):
-    # check for first timers.
-    if not winner.matches_played:
-      winner.rank = DEFAULT_ELO_RATING
-    if not loser.matches_played:
-      loser.rank = DEFAULT_ELO_RATING
-    rank_diff = winner.rank - loser.rank
-    exp = (rank_diff * -1) / 400
+  def adjust_rating(cls, winners, losers):
+
+    winner_rating = 0
+    for p in winners:
+      if not p.matches_played:
+        p.rating = DEFAULT_ELO_RATING
+      winner_rating = winner_rating + p.rating
+    loser_rating = 0
+    for p in losers:
+      if not p.matches_played:
+        p.rating = DEFAULT_ELO_RATING
+      loser_rating = loser_rating + p.rating
+
+    rating_diff = winner_rating - loser_rating
+    exp = (rating_diff * -1) / 400
     odds = 1 / (1 + math.pow(10, exp))
-    if winner.rank < 2100:
-        k = 32
-    elif winner.rank >= 2100 and winner.rank < 2400:
-        k = 24
+    bonus = len(losers) - len(winners) + 1
+    if bonus < 1: bonus = 1
+    if winner_rating < 2100:
+        k = 32 * bonus
+    elif winner_rating >= 2100 and winner_rating < 2400:
+        k = 24 * bonus
     else:
-        k = 16
-    new_winner_rank = int(round(winner.rank + (k * (1 - odds))))
-    winner_rank_diff = new_winner_rank - winner.rank
-    new_loser_rank = loser.rank - winner_rank_diff
-    if new_loser_rank < 1:
-      new_loser_rank = 1
-    loser_rank_diff = loser.rank - new_loser_rank
-    
-    winner.rank = int(new_winner_rank)
-    loser.rank = int(new_loser_rank)
-    
-    return(winner_rank_diff, loser_rank_diff)
+        k = 16 * bonus
+    new_winner_rating = round(winner_rating + (k * (1 - odds)))
+    winner_rating_delta = new_winner_rating - winner_rating
+    new_loser_rating = loser_rating - winner_rating_delta
+    loser_rating_delta = new_loser_rating - loser_rating
+
+    winner_rating_delta = int(round(winner_rating_delta / len(winners))) or 1
+    loser_rating_delta = int(round(loser_rating_delta / len(losers))) or -1
+
+    for p in winners:
+      p.rating = p.rating + winner_rating_delta
+    for p in losers:
+      p.rating = p.rating + loser_rating_delta
+      if p.rating < 1: p.rating = 1
+
+    return(winner_rating_delta, loser_rating_delta)
 
 class SC2Match(db.Model):
   """Matches are consist of a replay (stored in BlobStore) plus details
@@ -621,13 +662,13 @@ class SC2Match(db.Model):
   replay = db.BlobProperty(required=True)
   filename = db.StringProperty()
   uploaded = db.DateTimeProperty(auto_now_add=True)
-  winner = db.ReferenceProperty(SC2Player, collection_name='w_matches')
-  winner_race = db.StringProperty(required=True)
-  winner_color = db.StringProperty(required=True)
+  winner_keys = db.ListProperty(db.Key)
+  winner_races = db.StringListProperty()
+  winner_colors = db.StringListProperty()
   winner_delta = db.IntegerProperty(required=True)
-  loser = db.ReferenceProperty(SC2Player, collection_name='l_matches')
-  loser_race = db.StringProperty(required=True)
-  loser_color = db.StringProperty(required=True)
+  loser_keys = db.ListProperty(db.Key)
+  loser_races = db.StringListProperty()
+  loser_colors = db.StringListProperty()
   loser_delta = db.IntegerProperty(required=True)
   mapname = db.StringProperty(required=True)
   match_date_utc = db.DateTimeProperty(required=True)
@@ -660,3 +701,9 @@ class SC2Match(db.Model):
 
 def _make_transaction(method, *args):
   return method(*args)
+
+def as_iterable(arg):
+  try:
+    return iter(arg)
+  except TypeError:
+    return (arg,)

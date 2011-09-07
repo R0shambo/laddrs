@@ -7,10 +7,11 @@
 </head>
 <body>
  <h1><a href="/">SC2 Laddrs BETA!</a> - <a href="/ladder/{{ladder.get_ladder_key}}">{{ladder.name}}
+ {%if butter%}<div class="butter">{{butter}}</div>{%endif%}
    {%if not ladder.public %}(Private){%endif%} Ladder</a> - Join
  </h1>
  {%include "join_ladder_form.html"%}
- 
+
  {% include "footer.html" %}
 </body>
 </html>
