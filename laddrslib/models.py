@@ -13,6 +13,7 @@ import zipfile
 from django.template.defaultfilters import slugify
 
 from google.appengine.api import memcache
+from google.appengine.api import urlfetch_errors
 from google.appengine.api import users
 from google.appengine.ext import blobstore
 from google.appengine.ext import db
@@ -950,7 +951,7 @@ class SC2Player(db.Model):
         try:
           self._base_character = sc2ranks_api.fetch_base_character(
               region, self.name, self.bnet_id)
-        except DeadlineExceededError:
+        except urlfetch_errors.DeadlineExceededError:
           logging.exception("Timed out contacting sc2rank.")
           sc2ranks_throttle = time.time() + 3600
         # cache for a long time unless there was an error.
