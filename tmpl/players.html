@@ -1,0 +1,62 @@
+{% load humanize %}
+{%if ladder.public or user_player %}
+ {%if players%}
+  <h2>Players</h2>
+  <table class="sortable"><tr><th>Rank</th><th>Player</th>{%if user_player%}<th>Nickname</th>{%endif%}<th>Rating</th><th>Wins</th><th>Losses</th><th>Last Played</th>{%if manage_ladder%}<th>Admin</th>{%endif%}</tr>
+   {% for player in players|dictsortreversed:"fuzzy_rating" %}<tr {%if player.this_is_you %}class="current_user"{%endif%}>
+    <td align="center">{{forloop.counter|ordinal}}</td>
+    <td class='player-portrait'>{%include "player_portrait.html"%}</td>
+    {%if user_player%}<td>{%if player.email%}<a href="mailto:{{player.email}}">{%endif%}{{player.nickname}}{%if player.email%}</a>{%endif%}</td>{%endif%}
+    <td>{{player.fuzzy_rating|floatformat:0}}</td>
+    <td>{{player.wins}}</td>
+    <td>{{player.losses}}</td>
+    <td title="{{player.last_played}}"><span class="hidden">{{player.last_played|date:"YmdHis"}} </span>{{player.last_played|naturalday:"M d Y"|capfirst}}</td>
+    {%if manage_ladder%}
+     <td align="center">
+      {%if not player.this_is_you%}
+       {%if player.admin%}
+        <a class="demote-button" href="?action=demote_player;player={{player.get_player_key}};csrf_token={{csrf_token}}"><img border="0" src="/s/archon.png" alt="Demote Admin to Player" title="Demote Admin to Player" /></a>
+       {%else%}
+        <a class="promote-button" href="?action=promote_player;player={{player.get_player_key}};csrf_token={{csrf_token}}"><img border="0" src="/s/ht.png" alt="Promote Player to Admin" title="Promote Player to Admin" /></a>
+       {%endif%}
+      {%else%}
+       You
+      {%endif%}
+     </td>
+    {%endif%}
+   </tr>{%endfor%}
+  </table>
+ {%endif%}
+
+ {%if new_players%}
+  <h3>New Players</h3>
+  <table class="sortable"><tr><th>Player</th>{%if user_player%}<th>Nickname</th>{%endif%}<th>Joined</th>{%if user_player and not user_player.admin and not user_player.matches_played%}<th>Quit</th>{%endif%}{%if manage_ladder%}<th>Admin</th>{%endif%}</tr>
+   {% for player in new_players %}<tr {%if player.this_is_you %}class="current_user"{%endif%}>
+    <td class='player-portrait'>{%include "player_portrait.html"%}</td>
+    {%if user_player%}<td>{%if player.email%}<a href="mailto:{{player.email}}">{%endif%}{{player.nickname}}{%if player.email%}</a>{%endif%}</td>{%endif%}
+    <td title="{{player.joined}}"><span class="hidden">{{player.joined|date:"YmdHis"}} </span>{{player.joined|naturalday:"M d Y"|capfirst}}
+     {%if user_player and not user_player.admin and not user_player.matches_played%}
+      <td>
+       {%if player.this_is_you%}
+        <a class="delete-button" onClick='return confirm("Are you sure you want to leave the ladder?");' href="?quit_ladder=true;csrf_token={{csrf_token}}"><img border="0"" src="/s/delete.png" alt="Quit Ladder" title="Quit Ladder" /></a>
+       {%endif%}
+     </td>
+    {%endif%}
+    {%if manage_ladder%}
+     <td align="center">
+      {%if not player.this_is_you%}
+       <a class="delete-button" onClick='return confirm("Are you sure you want to delete {{player.name}}?");' href="?action=delete_player;player={{player.get_player_key}};csrf_token={{csrf_token}}"><img border="0" height="40" src="/s/delete.png" alt="Delete Player" title="Delete Player" /></a>
+       {%if player.admin%}
+        <a class="demote-button" href="?action=demote_player;player={{player.get_player_key}};csrf_token={{csrf_token}}"><img border="0" src="/s/archon.png" alt="Demote Admin to Player" title="Demote Admin to Player" /></a>
+       {%else%}
+        <a class="promote-button" href="?action=promote_player;player={{player.get_player_key}};csrf_token={{csrf_token}}"><img border="0" src="/s/ht.png" alt="Promote Player to Admin" title="Promote Player to Admin" /></a>
+       {%endif%}
+      {%else%}
+       You
+      {%endif%}
+     </td>
+    {%endif%}
+   </tr>{%endfor%}
+  </table>
+ {%endif%}
+{%endif%}
