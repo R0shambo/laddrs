@@ -75,10 +75,13 @@ class SC2Ladder(db.Model):
   @classmethod
   def create_ladder(cls, user, ladder_name, region, description, public,
       invite_only, player_name, bnet_id, char_code):
-
-    ladder_name = ladder_name.strip()
-
-    if db.is_in_transaction():
+    if not db.is_in_transaction():
+      return db.run_in_transaction(_make_transaction, cls.create_ladder,
+          user, ladder_name, region, description, public, invite_only,
+          player_name, bnet_id, char_code)
+    else:
+      # cleanup
+      ladder_name = ladder_name.strip()
       # sanity checks.
       if not ladder_name:
         raise SC2Ladder.NameMissing
@@ -110,19 +113,17 @@ class SC2Ladder(db.Model):
       player = ladder.add_player(
           player_name, bnet_id, char_code, user, admin=True)
 
+      memcache.delete(user.user_id(), namespace=MC_L4U)
+      if public:
+        memcache.delete(MC_PL)
+
       return ladder
 
-    # if we got this far, it means we are not inside a transaction, start one.
-    rv = db.run_in_transaction(_create_ladder_transaction,
-        user, ladder_name, region, description, public, invite_only,
-        player_name, bnet_id, char_code)
-    memcache.delete(user.user_id(), namespace=MC_L4U)
-    if public:
-      memcache.delete(MC_PL)
-    return rv
-
   def update_ladder(self, description, public, invite_only, regen_invite_code):
-    if db.is_in_transaction():
+    if not db.is_in_transaction():
+      return db.run_in_transaction(_make_transaction, self.update_ladder,
+          description, public, invite_only, regen_invite_code)
+    else:
       # sanity checks.
       if not description:
         raise SC2Ladder.DescriptionMissing
@@ -139,15 +140,15 @@ class SC2Ladder(db.Model):
       memcache.delete(MC_PL)
       return self
 
-    # if we got this far, it means we are not inside a transaction, start one.
-    return db.run_in_transaction(_update_ladder_transaction,
-        self, description, public, invite_only, regen_invite_code)
-
   def add_player(self, player_name, bnet_id, char_code, user, admin=False):
-    player_name = player_name.strip()
-    bnet_id = bnet_id.strip()
-    char_code = char_code.strip()
-    if db.is_in_transaction():
+    if not db.is_in_transaction():
+      return db.run_in_transaction(_make_transaction, self.add_player,
+          player_name, bnet_id, char_code, user, admin)
+    else:
+      # cleanup
+      player_name = player_name.strip()
+      bnet_id = bnet_id.strip()
+      char_code = char_code.strip()
       # sanity checks
       if not player_name:
         raise SC2Player.NameMissing
@@ -172,7 +173,7 @@ class SC2Ladder(db.Model):
           bnet_id=bnet_id,
           code=char_code,
           user_id=user.user_id(),
-          rank=DEFAULT_ELO_RATING,
+          rank=0,
           matches_played=0,
           wins=0,
           losses=0,
@@ -181,19 +182,17 @@ class SC2Ladder(db.Model):
       player.put()
       self.players = self.players + 1
       self.put()
+      memcache.delete(user.user_id(), namespace=MC_L4U)
+      memcache.delete(self.get_ladder_key(), namespace=MC_P4L)
+      if self.public:
+        memcache.delete(MC_PL)
       return player
 
-    # if we got this far, it means we are not inside a transaction, start one.
-    rv = db.run_in_transaction(_add_player_transaction,
-        self, player_name, bnet_id, char_code, user, admin)
-    memcache.delete(user.user_id(), namespace=MC_L4U)
-    memcache.delete(self.get_ladder_key(), namespace=MC_P4L)
-    if self.public:
-      memcache.delete(MC_PL)
-    return rv
-
-  def remove_player(self, player, force=False):
-    if db.is_in_transaction():
+  def remove_player(self, player):
+    if not db.is_in_transaction():
+      return db.run_in_transaction(_make_transaction, self.remove_player,
+          player)
+    else:
       # refetch player as part of transaction
       player = self.get_player(player.name, player.bnet_id)
 
@@ -202,26 +201,25 @@ class SC2Ladder(db.Model):
         return True
 
       # only delete inactive players
-      if force or (not player.matches_played and not player.admin):
+      if not player.matches_played and not player.admin:
         player.delete()
         self.players = self.players - 1
         self.put()
+
+        memcache.delete(player.user_id, namespace=MC_L4U)
+        memcache.delete(self.get_ladder_key(), namespace=MC_P4L)
+        if self.public:
+          memcache.delete(MC_PL)
         return True
-      
       # nothing deleted
       return False
 
-    # if we got this far, it means we are not inside a transaction, start one.
-    rv = db.run_in_transaction(_remove_player_transaction,
-        self, player, force)
-    memcache.delete(player.user_id, namespace=MC_L4U)
-    memcache.delete(self.get_ladder_key(), namespace=MC_P4L)
-    if self.public:
-      memcache.delete(MC_PL)
-    return rv
 
-  def add_match(self, user_player, replay_data, filename):
-    if db.is_in_transaction():
+  def add_match(self, user_player, replay_data, filename, force=False):
+    if not db.is_in_transaction():
+      return db.run_in_transaction(_make_transaction, self.add_match,
+          user_player, replay_data, filename, force)
+    else:
       replay_file = StringIO.StringIO(replay_data)
       replay = None
       try:
@@ -256,7 +254,10 @@ class SC2Ladder(db.Model):
             "%s/%s" % (replay_loser.handle(), replay_loser.bnet_id()))
 
       # make sure that uploader is either the winner or loser.
-      if (user_player.user_id != winner.user_id
+      if (force and user_player.admin):
+        # allow upload if admin user and force upload checked.
+        pass
+      elif (user_player.user_id != winner.user_id
           and user_player.user_id != loser.user_id):
         raise SC2Match.NotReplayOfUploader
 
@@ -264,6 +265,8 @@ class SC2Ladder(db.Model):
       existing_match = self.find_match(winner, loser, replay.timestamp())
       if existing_match:
         raise SC2Match.MatchAlreadyExists
+
+      (winner_delta, loser_delta) = SC2Player.adjust_ranking(winner, loser)
 
       winner.matches_played = winner.matches_played + 1
       winner.wins = winner.wins + 1
@@ -275,7 +278,6 @@ class SC2Ladder(db.Model):
       if not loser.last_played or loser.last_played < replay.timestamp_local():
         loser.last_played = replay.timestamp_local()
 
-      SC2Player.adjust_ranking(winner, loser)
 
       winner.put()
       loser.put()
@@ -296,9 +298,11 @@ class SC2Ladder(db.Model):
           winner=winner,
           winner_race=replay_winner.race(),
           winner_color=replay_winner.color_name(),
+          winner_delta=winner_delta,
           loser=loser,
           loser_race=replay_loser.race(),
           loser_color=replay_loser.color_name(),
+          loser_delta=loser_delta,
           mapname=replay.map_human_friendly(),
           match_date_utc=replay.timestamp(),
           match_date_local=replay.timestamp_local(),
@@ -313,13 +317,47 @@ class SC2Ladder(db.Model):
       memcache.delete(self.get_ladder_key(), namespace=MC_M4L)
       if self.public:
         memcache.delete(MC_PL)
-
       return match
 
-    # if we got this far, it means we are not inside a transaction, start one.
-    rv = db.run_in_transaction(_add_match_transaction,
-        self, user_player, replay_data, filename)
-    return rv
+  def remove_match(self, match):
+    if not db.is_in_transaction():
+      return db.run_in_transaction(_make_transaction, self.remove_match, match)
+    else:
+      # make sure there's not funny business going on.
+      if match.parent().get_ladder_key() != self.get_ladder_key():
+        raise SC2Match.InvalidRemoval(
+            "%s != %s" % match.parent().get_ladder_key(), self.get_ladder_key())
+
+      winner = match.winner
+      winner.matches_played = winner.matches_played - 1
+      winner.wins = winner.wins - 1
+      if winner.matches_played:
+        winner.rank = winner.rank - match.winner_delta
+      else:
+        winner.rank = 0
+      loser = match.loser
+      loser.matches_played = loser.matches_played - 1
+      loser.losses = loser.losses - 1
+      if loser.matches_played:
+        loser.rank = loser.rank + match.loser_delta
+      else:
+        loser.rank = 0
+
+      winner.put()
+      loser.put()
+
+      self.matches_played = self.matches_played - 1
+      self.put()
+      
+      match.delete()
+
+      memcache.delete(winner.user_id, namespace=MC_L4U)
+      memcache.delete(loser.user_id, namespace=MC_L4U)
+      memcache.delete(self.get_ladder_key(), namespace=MC_P4L)
+      memcache.delete(self.get_ladder_key(), namespace=MC_M4L)
+      if self.public:
+        memcache.delete(MC_PL)
+      return True
 
   @classmethod
   def get_ladder(cls, ladder_key):
@@ -391,10 +429,15 @@ class SC2Ladder(db.Model):
     return beefy_matches
 
   def get_player(self, player_name, bnet_id):
-    """Retrieves a SC2Ladder object from the datastore."""
+    """Retrieves a SC2Player object from the datastore."""
     return db.get(db.Key.from_path(
         'SC2Ladder', self.get_ladder_key(),
         'SC2Player', SC2Player.player_key(player_name, bnet_id)))
+
+  def get_player_by_key(self, player_key):
+    """Retrieves a SC2Player object from the datastore."""
+    return db.get(db.Key.from_path(
+        'SC2Ladder', self.get_ladder_key(), 'SC2Player', player_key))
 
   def get_players(self, user=None):
 
@@ -496,6 +539,15 @@ class SC2Player(db.Model):
   def get_ladder(self):
     return self.parent()
 
+  def set_admin(self, admin):
+    if not db.is_in_transaction():
+      return db.run_in_transaction(_make_transaction, self.set_admin, admin)
+    else:
+      self.admin = admin
+      self.put()
+      memcache.delete(self.get_ladder().get_ladder_key(), namespace=MC_P4L)
+      return admin
+
   def sc2rank_player_key(self):
     return "%s/%s/%s" % (self.parent().region, self.name, self.bnet_id)
 
@@ -536,6 +588,11 @@ class SC2Player(db.Model):
 
   @classmethod
   def adjust_ranking(cls, winner, loser):
+    # check for first timers.
+    if not winner.matches_played:
+      winner.rank = DEFAULT_ELO_RATING
+    if not loser.matches_played:
+      loser.rank = DEFAULT_ELO_RATING
     rank_diff = winner.rank - loser.rank
     exp = (rank_diff * -1) / 400
     odds = 1 / (1 + math.pow(10, exp))
@@ -545,14 +602,17 @@ class SC2Player(db.Model):
         k = 24
     else:
         k = 16
-    new_winner_rank = round(winner.rank + (k * (1 - odds)))
-    new_rank_diff = new_winner_rank - winner.rank
-    new_loser_rank = loser.rank - new_rank_diff
+    new_winner_rank = int(round(winner.rank + (k * (1 - odds))))
+    winner_rank_diff = new_winner_rank - winner.rank
+    new_loser_rank = loser.rank - winner_rank_diff
     if new_loser_rank < 1:
       new_loser_rank = 1
-
+    loser_rank_diff = loser.rank - new_loser_rank
+    
     winner.rank = int(new_winner_rank)
     loser.rank = int(new_loser_rank)
+    
+    return(winner_rank_diff, loser_rank_diff)
 
 class SC2Match(db.Model):
   """Matches are consist of a replay (stored in BlobStore) plus details
@@ -564,33 +624,31 @@ class SC2Match(db.Model):
   winner = db.ReferenceProperty(SC2Player, collection_name='w_matches')
   winner_race = db.StringProperty(required=True)
   winner_color = db.StringProperty(required=True)
+  winner_delta = db.IntegerProperty(required=True)
   loser = db.ReferenceProperty(SC2Player, collection_name='l_matches')
   loser_race = db.StringProperty(required=True)
   loser_color = db.StringProperty(required=True)
+  loser_delta = db.IntegerProperty(required=True)
   mapname = db.StringProperty(required=True)
   match_date_utc = db.DateTimeProperty(required=True)
   match_date_local = db.DateTimeProperty(required=True)
   duration = db.StringProperty(required=True)
   version = db.StringProperty(required=True)
 
+  class InvalidRemoval(Exception):
+    pass
   class LoserNotInLadder(Exception):
     pass
-
   class MatchAlreadyExists(Exception):
     pass
-
   class NotReplayOfUploader(Exception):
     pass
-
   class ReplayHasNoWinner(Exception):
     pass
-
   class ReplayParseFailed(Exception):
     pass
-
   class TooManyPlayers(Exception):
     pass
-
   class WinnerNotInLadder(Exception):
     pass
 
@@ -600,22 +658,5 @@ class SC2Match(db.Model):
         winner.get_player_key(), loser.get_player_key(), str(timestamp))
 
 
-def _create_ladder_transaction(user, ladder_name, region, description, public,
-    invite_only, player_name, bnet_id, char_code):
-  return SC2Ladder.create_ladder(user, ladder_name, region, description, public,
-      invite_only, player_name, bnet_id, char_code)
-
-def _update_ladder_transaction(ladder, description, public, invite_only,
-    regen_invite_code):
-  return ladder.update_ladder(description, public, invite_only,
-    regen_invite_code)
-
-def _add_player_transaction(ladder, player_name, bnet_id, char_code, user,
-    admin):
-  return ladder.add_player(player_name, bnet_id, char_code, user, admin)
-
-def _remove_player_transaction(ladder, player, force):
-  return ladder.remove_player(player, force)
-
-def _add_match_transaction(ladder, user_player, replay_data, filename):
-  return ladder.add_match(user_player, replay_data, filename)
+def _make_transaction(method, *args):
+  return method(*args)

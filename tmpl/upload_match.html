@@ -9,5 +9,10 @@
    ladder. Any other uploads will be rejected.</div><br>
   <div>Replay File: <input type="file" name="replay_file">
    <input type="submit" name="submit" value="Upload!"></div>
+  {%if user_player.admin%}
+   <div>Force Upload: <input type="checkbox" name="force_upload" />
+    <div class="details">As an Admin, you may force replay to be accepted even if you are not one of the players in the match.</div>
+  {%endif%}
+  </div>
  </form>
 {%endif%}

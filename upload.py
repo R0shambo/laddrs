@@ -49,28 +49,32 @@ class MainPage(webapp.RequestHandler):
     if hasattr(self.request.POST["replay_file"], 'filename'):
       filename = self.request.POST["replay_file"].filename
 
-    try:
-      match = ladder.add_match(user_player,
-          self.request.get('replay_file'), filename)
-      if match:
-         self.redirect('/ladder/%s' % ladder.get_ladder_key())
-         return
-      else:
-        errormsg = "Umm... not quite sure what has gone wrong."
-    except SC2Match.ReplayParseFailed:
-      errormsg = "Unable to parse uploaded replay file."
-    except SC2Match.TooManyPlayers, e:
-      errormsg = "Only 1v1 replays allowed. Uploaded replay has %d players." % e.args
-    except SC2Match.ReplayHasNoWinner:
-      errormsg = "Replay has no winner."
-    except SC2Match.WinnerNotInLadder, e:
-      errormsg = "Winner (%s) is not a member of the ladder." % e.args
-    except SC2Match.LoserNotInLadder, e:
-      errormsg = "Loser (%s) is not a member of the ladder." % e.args
-    except SC2Match.NotReplayOfUploader:
-      errormsg = "You may only upload your own replays."
-    except SC2Match.MatchAlreadyExists:
-      errormsg = "This match has already been uploaded."
+    if util.csrf_protect(self):
+      try:
+        match = ladder.add_match(user_player,
+            self.request.get('replay_file'), filename,
+            force=self.request.get('force_upload'))
+        if match:
+           self.redirect('/ladder/%s' % ladder.get_ladder_key())
+           return
+        else:
+          errormsg = "Umm... not quite sure what has gone wrong."
+      except SC2Match.ReplayParseFailed:
+        errormsg = "Unable to parse uploaded replay file."
+      except SC2Match.TooManyPlayers, e:
+        errormsg = "Only 1v1 replays allowed. Uploaded replay has %d players." % e.args
+      except SC2Match.ReplayHasNoWinner:
+        errormsg = "Replay has no winner."
+      except SC2Match.WinnerNotInLadder, e:
+        errormsg = "Winner (%s) is not a member of the ladder." % e.args
+      except SC2Match.LoserNotInLadder, e:
+        errormsg = "Loser (%s) is not a member of the ladder." % e.args
+      except SC2Match.NotReplayOfUploader:
+        errormsg = "You may only upload your own replays."
+      except SC2Match.MatchAlreadyExists:
+        errormsg = "This match has already been uploaded."
+    else:
+      errormsg = "Session timed out."
 
     template_values = util.add_user_tmplvars(self, {
       'errormsg': errormsg,

@@ -48,8 +48,30 @@ class MainPage(webapp.RequestHandler):
       matches = ladder.get_matches(user)
 
     manage_ladder = False
-    if user_player and user_player.admin and manage:
-      manage_ladder = True
+    if manage:
+      if user_player and user_player.admin:
+        manage_ladder = True
+        if util.csrf_protect(self):
+        # all management command handling goes here:
+          player_key = self.request.get('player')
+          match_key = str(urllib.unquote(self.request.get('match')))
+          if player_key:
+            player = ladder.get_player_by_key(player_key)
+            if self.request.get('action') == "demote_player":
+              player.set_admin(False)
+            elif self.request.get('action') == "promote_player":
+              player.set_admin(True)
+            elif self.request.get('action') == "delete_player":
+              ladder.remove_player(player)
+          elif match_key:
+            match = db.get(match_key)
+            if self.request.get('action') == "delete_match":
+              ladder.remove_match(match)
+          self.redirect("/manage_ladder/%s" % ladder.get_ladder_key())
+          return
+      else:
+        self.redirect("/ladder/%s" % ladder.get_ladder_key())
+        return
 
     template_values = util.add_user_tmplvars(self, {
       'ladder': ladder,
