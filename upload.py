@@ -58,6 +58,7 @@ class MainPage(webapp.RequestHandler):
           self.redirect('/ladder/%s' % ladder.get_ladder_key())
           util.set_butter(
               "Match replay accepted. Player rankings adjusted.")
+          util.track_pageview('/goal/match_upload.html')
           return
         else:
           errormsg = "Umm... not quite sure what has gone wrong."

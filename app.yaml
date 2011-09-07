@@ -1,7 +1,10 @@
 application: laddrs
-version: 3-0-0
+version: 3-1-0
 runtime: python
 api_version: 1
+
+builtins:
+- appstats: on
 
 handlers:
 - url: /s
@@ -20,7 +23,6 @@ handlers:
 
 - url: /manage_ladder/.*
   script: ladder.py
-
 
 - url: /join_ladder/.*
   script: join_ladder.py

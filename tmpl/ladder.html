@@ -2,12 +2,12 @@
 {%autoescape on%}
 <html>
 <head>
- <title>SC2 Laddrs! - {{ladder.name}} Ladder</title>
+ <title>{{ladder.name}} - SC2 Laddrs!</title>
  <link type="text/css" rel="stylesheet" href="/s/main.css" />
  <script src="/s/sorttable.js"></script>
  {%include "urchin.html"%}
 </head>
-<body>
+<body {%include "tracking.html"%}>
  <h1><a href="/">SC2 Laddrs BETA!</a> - {{ladder.name}}
    {%if not ladder.public %}(Private){%endif%} Ladder <g:plusone></g:plusone>
  </h1>
@@ -57,7 +57,7 @@
      <td>{{player.rating}}</td>
      <td>{{player.wins}}</td>
      <td>{{player.losses}}</td>
-     <td><span class="hidden">{{player.last_played|date:"YmdHis"}} </span>{{player.last_played|naturalday:"M d Y"}}</td>
+     <td title="{{player.last_played}}"><span class="hidden">{{player.last_played|date:"YmdHis"}} </span>{{player.last_played|naturalday:"M d Y"|capfirst}}</td>
      {%if manage_ladder%}
       <td align="center">
        {%if not player.this_is_you%}
@@ -80,7 +80,7 @@
    <table class="sortable"><tr><th>Player</th><th>Joined</th>{%if user_player and not user_player.admin and not user_player.matches_played%}<th>Quit</th>{%endif%}{%if manage_ladder%}<th>Admin</th>{%endif%}</tr>
     {% for player in new_players %}<tr {%if player.this_is_you %}class="current_user"{%endif%}>
      <td class='player-portrait'>{%include "player_portrait.html"%}</td>
-     <td><span class="hidden">{{player.joined|date:"YmdHis"}} </span>{{player.joined|naturalday:"M d Y"|capfirst}}
+     <td title="{{player.joined}}"><span class="hidden">{{player.joined|date:"YmdHis"}} </span>{{player.joined|naturalday:"M d Y"|capfirst}}
       {%if user_player and not user_player.admin and not user_player.matches_played%}
        <td>
         {%if player.this_is_you%}
@@ -111,19 +111,21 @@
   <h2>Match History</h2>
   {%if matches%}
    <table class="sortable"><tr><th>Date</th><th>Winner</th><th>Loser</th><th>Map</th><th>Duration</th><th>D/L</th>{%if manage_ladder%}<th>Admin</th>{%endif%}</tr>
-    {% for match in matches|dictsortreversed:"match_date_local" %}
+    {% for match in matches|dictsortreversed:"match_date_utc" %}
      <tr {%if match.you_won %}class="user_win"{%else%}
          {%if match.you_lost %}class="user_loss"{%endif%}{%endif%}>
-     <td><span class="hidden">{{match.match_date_local|date:"YmdHis"}} </span>
-      {{match.match_date_local|naturalday:"M d Y"}}</td>
+     <td title="{{match.match_date_local}}"><span class="hidden">{{match.match_date_local|date:"YmdHis"}} </span>
+      {{match.match_date_local|naturalday:"M d Y"|capfirst}}</td>
      <td class='player-portrait'>{%for player in match.winners%}{%include "player_portrait.html"%}{%endfor%}</td>
      <td class='player-portrait'>{%for player in match.losers%}{%include "player_portrait.html"%}{%endfor%}</td>
      <td><span class="hidden">{{match.mapname|lower}} </span>{{match.mapname}}</td>
      <td class="duration">{{match.duration}}</td>
-     <td class='player-portrait'><a href="/download/{{ match.key }}/{%if match.filename%}{{match.filename}}{%else%}{{match.winner.name}}_v_{{match.loser.name}}_{{match.match_date_local|date:"M-d-Y_H-i"}}.SC2Replay{%endif%}" title="Uploaded {{match.uploaded|naturalday:"M d Y"}} by {{match.uploader.name}} - v{{match.version}}"><img alt="Download Replay" src="/s/sc2replay-icon.png" height="45"/></a></td>
+     <td class='player-portrait'><a onclick="_gaq.push(['_trackPageview', '/download/{{match.key}}/{%if match.filename%}{{match.filename}}{%else%}{{match.winner.name}}_v_{{match.loser.name}}_{{match.match_date_local|date:"M-d-Y_H-i"}}.SC2Replay{%endif%}']);" href="/download/{{match.key}}/{%if match.filename%}{{match.filename}}{%else%}{{match.winner.name}}_v_{{match.loser.name}}_{{match.match_date_local|date:"M-d-Y_H-i"}}.SC2Replay{%endif%}" title="Uploaded {{match.uploaded|naturalday:"M d Y"}} by {{match.uploader.name}} - v{{match.version}}"><img alt="Download Replay" src="/s/sc2replay-icon.png" height="45"/></a></td>
      {%if manage_ladder%}
       <td align="center">
+       {%if not match.frozen%}
        <a class="delete-button" onClick='return confirm("Are you sure you want to delete match?");' href="?action=delete_match;match={{ match.key }};csrf_token={{csrf_token}}"><img border="0" height="40" src="/s/delete.png" alt="Delete Match" title="Delete Match" /></a>
+       {%endif%}
       </td>
      {%endif%}
     </tr>{%endfor%}

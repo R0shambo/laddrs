@@ -34,8 +34,9 @@
   {% endif %}
  {% endif %}
 
- <h2>Public Ladders</h2>
- {% if public_ladders %}
+
+ <h2>Public Ladders <!--%if public_ladders% %include "search_box.html"% %endif%--></h2>
+  {% if public_ladders %}
   <table class="sortable">
    <tr><th>Ladder</th><th>Matches</th><th>Players</th><th>Region</th><th>Description</th></tr>
    {% for ladder in public_ladders|dictsort:"matches_played" %}

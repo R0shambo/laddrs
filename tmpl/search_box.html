@@ -1,0 +1,37 @@
+<div style="display:inline">
+<form class="search" action="http://www.google.com/cse">
+ <input type="hidden" name="cx" value="000330784670902336572:uxckatbq5q4" />
+ <input type="text" size="40" name="q" placeholder="Search Public Ladders" />
+ <input type="submit" value="Search!" />
+</form>
+<!--
+<div id="cse-search-form" style="display:inline-block;max-width:50%;"></div>
+<script src="http://www.google.com/jsapi" type="text/javascript"></script>
+<script type="text/javascript">
+  google.load('search', '1', {language : 'en'});
+  var _gaq = _gaq || [];
+  _gaq.push(["_setAccount", "UA-25402459-1"]);
+  function _trackQuery(control, searcher, query) {
+    var gaQueryParamName = "q";
+    var loc = document.location;
+    var url = [
+      loc.pathname,
+      loc.search,
+      loc.search ? '&' : '?',
+      gaQueryParamName == '' ? 'q' : encodeURIComponent(gaQueryParamName),
+      '=',
+      encodeURIComponent(query)
+    ].join('');
+    _gaq.push(["_trackPageview", url]);
+  }
+  google.setOnLoadCallback(function() {
+    var customSearchControl = new google.search.CustomSearchControl('000330784670902336572:uxckatbq5q4');
+    customSearchControl.setResultSetSize(google.search.Search.FILTERED_CSE_RESULTSET);
+    customSearchControl.setSearchStartingCallback(null, _trackQuery);
+    var options = new google.search.DrawOptions();
+    options.enableSearchboxOnly("http://www.google.com/cse?cx=000330784670902336572:uxckatbq5q4");
+    customSearchControl.draw('cse-search-form', options);
+  }, true);
+</script>
+<link rel="stylesheet" href="http://www.google.com/cse/style/look/default.css" type="text/css" />
+-->

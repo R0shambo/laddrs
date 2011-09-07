@@ -30,6 +30,8 @@ MC_SC2RP="sc2rank-player"
 
 DEFAULT_ELO_RATING=1600
 
+MAX_UNFROZEN_MATCHES=500
+
 REGION_RE = re.compile("^(us|eu|kr|tw|sea|ru|la)$")
 PUNCTUATION_RE = re.compile("[%s]" % re.escape(string.punctuation))
 sc2ranks_api = Sc2Ranks("laddrs.appspot.com")
@@ -213,6 +215,57 @@ class SC2Ladder(db.Model):
       # nothing deleted
       return False
 
+  def _reticulate_match_history(self, add_match=None, remove_match=None):
+    # fetch and reset all player ratings to frozen ratings.
+    players = {}
+    for player in self.get_players(fast=True):
+      player.rating = player.frozen_rating
+      players[player.key()] = player
+
+    # get all unfrozen matches and replay rating adjustments.
+    matches = SC2Match.gql(
+        "WHERE ANCESTOR IS :1 AND frozen = FALSE "
+        "ORDER BY match_date_utc ASC", self.key())
+    # GET ALL THE MATCHES!
+    match_history = []
+    for match in matches:
+      # insert new match appropriately
+      if (add_match and
+          add_match.match_date_utc < match.match_date_utc):
+        match_history.append(add_match)
+        add_match = None
+      # if this is the match we are removing, don't append it to match_history.
+      if (remove_match and
+          remove_match.get_match_key() == match.get_match_key()):
+        pass
+      else:
+        match_history.append(match)
+
+    # if new match wasn't inserted above, then append it to the very end.
+    if add_match:
+      match_history.append(add_match)
+
+    # if there are more matches than the allowed number of unfrozen matches,
+    # we'll need to freeze the extras.
+    matches_to_freeze = len(match_history) - MAX_UNFROZEN_MATCHES
+    # okay now iterate through all the matches to replay rating adjustments.
+    for match in match_history:
+      # recreate list of winners and losers from historical match
+      winning_players = [players[k] for k in match.winner_keys]
+      losing_players = [players[k] for k in match.loser_keys]
+      SC2Player.adjust_rating(winning_players, losing_players)
+      if matches_to_freeze > 0:
+        logging.info("freezing match %s %s", self.get_ladder_key(),
+            match.get_match_key())
+        match.frozen = True
+        match.put()
+        # set frozen ratings for all players to their currently calculated
+        # rating.
+        for player in players.itervalues():
+          player.frozen_rating = player.rating
+
+    # all done. return player list so they can be saved.
+    return players
 
   def add_match(self, user_player, replay_data, filename, force=False):
     if not db.is_in_transaction():
@@ -236,7 +289,16 @@ class SC2Ladder(db.Model):
       else:
         raise SC2Match.ReplayHasNoWinner
 
-      # now check that players are in the ladder.
+      # Fetch most recent frozen match and reject new match if it's older.
+      frozen_match = SC2Match.gql(
+          "WHERE ANCESTOR IS :1 AND frozen = TRUE "
+          "ORDER BY match_date_utc DESC", self.key()).get()
+      if frozen_match:
+        logging.info("latest frozen match is %s", frozen_match.get_match_key())
+        if replay.timestamp() < frozen_match.match_date_utc:
+          raise SC2Match.ReplayIsTooOld
+
+      # now check that all players are in the ladder.
       winners = []
       winner_races = []
       winner_colors = []
@@ -269,7 +331,7 @@ class SC2Ladder(db.Model):
       # make sure that uploader is either the winner or loser.
       if (force and user_player.admin):
         # allow upload if admin user and force upload checked.
-        pass
+        logging.info("upload to %s forced by admin", self.get_ladder_key())
       elif (not user_in_replay):
         raise SC2Match.NotReplayOfUploader
 
@@ -279,30 +341,12 @@ class SC2Ladder(db.Model):
       if existing_match:
         raise SC2Match.MatchAlreadyExists
 
-      (winner_delta, loser_delta) = SC2Player.adjust_rating(winners, losers)
-
-      for p in winners:
-        p.matches_played = p.matches_played + 1
-        p.wins = p.wins + 1
-        if not p.last_played or p.last_played < replay.timestamp_local():
-          p.last_played = replay.timestamp_local()
-        p.put()
-
-      for p in losers:
-        p.matches_played = p.matches_played + 1
-        p.losses = p.losses + 1
-        if not p.last_played or p.last_played < replay.timestamp_local():
-          p.last_played = replay.timestamp_local()
-        p.put()
-
-      self.matches_played = self.matches_played + 1
-      self.put()
-
+      # make the replay filename safe!
       filename = slugify(filename[:filename.rfind('.')])
       if filename:
         filename = filename + '.SC2Replay'
 
-      match = SC2Match(
+      new_match = SC2Match(
           parent=self,
           key_name=SC2Match.match_key(winners[0], losers[0], replay.timestamp()),
           uploader=user_player,
@@ -311,62 +355,89 @@ class SC2Ladder(db.Model):
           winner_keys=[e.key() for e in winners],
           winner_races=winner_races,
           winner_colors=winner_colors,
-          winner_delta=winner_delta,
           loser_keys=[e.key() for e in losers],
           loser_races=loser_races,
           loser_colors=loser_colors,
-          loser_delta=loser_delta,
           mapname=replay.map_human_friendly(),
           match_date_utc=replay.timestamp(),
           match_date_local=replay.timestamp_local(),
           duration=str(datetime.timedelta(seconds=replay.duration())),
           version='.'.join([str(n) for n in replay.version()]))
 
-      match.put()
+      # Now we do the meaty work of pulling down match history so we can insert
+      # the match into the proper place in time and accurately adjust player
+      # ratings.
+      players = self._reticulate_match_history(add_match=new_match)
 
-      for p in winners + losers:
+      # match history has been completely replayed yay!
+      # replace winners and losers with reticulated players.
+      winners = [players[p.key()] for p in winners]
+      losers = [players[p.key()] for p in losers]
+
+      # update vitals for match participants.
+      for p in winners:
+        p.matches_played = p.matches_played + 1
+        p.wins = p.wins + 1
+        if not p.last_played or p.last_played < replay.timestamp_local():
+          p.last_played = replay.timestamp_local()
+
+      for p in losers:
+        p.matches_played = p.matches_played + 1
+        p.losses = p.losses + 1
+        if not p.last_played or p.last_played < replay.timestamp_local():
+          p.last_played = replay.timestamp_local()
+
+      # SAVE ALL THE THINGS!
+      self.matches_played = self.matches_played + 1
+      self.put()
+
+      for player in players.itervalues():
+        player.put()
+
+      new_match.put()
+
+      for p in players.itervalues():
         memcache.delete(p.user_id, namespace=MC_L4U)
       memcache.delete(self.get_ladder_key(), namespace=MC_P4L)
       memcache.delete(self.get_ladder_key(), namespace=MC_M4L)
       if self.public:
         memcache.delete(MC_PL)
-      return match
+      return new_match
 
   def remove_match(self, match):
     if not db.is_in_transaction():
       return db.run_in_transaction(_make_transaction, self.remove_match, match)
     else:
+      if match.frozen:
+        raise SC2Match.MatchFrozen()
       # make sure there's not funny business going on.
       if match.parent().get_ladder_key() != self.get_ladder_key():
         raise SC2Match.InvalidRemoval(
             "%s != %s" % match.parent().get_ladder_key(), self.get_ladder_key())
 
-      winners = [db.get(k) for k in match.winner_keys]
+      # recreate rating history without this match.
+      players = self._reticulate_match_history(remove_match=match)
+
+      # update vitals for match participants.
+      winners = [players[k] for k in match.winner_keys]
       for p in winners:
         p.matches_played = p.matches_played - 1
         p.wins = p.wins - 1
-        if p.matches_played:
-          p.rating = p.rating - match.winner_delta
-          if p.rating < 1: p.rating = 1
-        else:
-          p.rating = 0
-        p.put()
-      losers = [db.get(k) for k in match.loser_keys]
+      losers = [players[k] for k in match.loser_keys]
       for p in losers:
         p.matches_played = p.matches_played - 1
         p.losses = p.losses - 1
-        if p.matches_played:
-          p.rating = p.rating - match.loser_delta
-        else:
-          p.rating = 0
-        p.put()
 
+      # SAVE ALL THE THINGS!
       self.matches_played = self.matches_played - 1
       self.put()
 
+      for player in players.itervalues():
+        player.put()
+
       match.delete()
 
-      for p in winners + losers:
+      for p in players.itervalues():
         memcache.delete(p.user_id, namespace=MC_L4U)
       memcache.delete(self.get_ladder_key(), namespace=MC_P4L)
       memcache.delete(self.get_ladder_key(), namespace=MC_M4L)
@@ -467,8 +538,7 @@ class SC2Ladder(db.Model):
     return db.get(db.Key.from_path(
         'SC2Ladder', self.get_ladder_key(), 'SC2Player', player_key))
 
-  def get_players(self, user=None):
-
+  def get_players(self, user=None, fast=False):
     all_players = memcache.get(self.get_ladder_key(), namespace=MC_P4L)
     if not all_players:
       logging.info("fetching players for %s", self.get_ladder_key())
@@ -476,6 +546,8 @@ class SC2Ladder(db.Model):
           "WHERE ANCESTOR IS :1", self.key())
       memcache.add(
           self.get_ladder_key(), all_players, namespace=MC_P4L, time=MC_EXP_MED)
+    if fast:
+      return all_players
 
     players = []
     new_players = []
@@ -527,7 +599,6 @@ class SC2Ladder(db.Model):
         'SC2Match', SC2Match.match_key(winner, loser, timestamp)))
 
 
-
 class SC2Player(db.Model):
   """Ladder players."""
   name = db.StringProperty(required=True)
@@ -536,7 +607,8 @@ class SC2Player(db.Model):
   user_id = db.StringProperty(required=True)
   joined = db.DateTimeProperty(auto_now_add=True)
   admin = db.BooleanProperty()
-  rating = db.IntegerProperty()
+  rating = db.IntegerProperty(default=0)
+  frozen_rating = db.IntegerProperty(default=0)
   matches_played = db.IntegerProperty(required=True)
   wins = db.IntegerProperty(required=True)
   losses = db.IntegerProperty(required=True)
@@ -619,12 +691,12 @@ class SC2Player(db.Model):
 
     winner_rating = 0
     for p in winners:
-      if not p.matches_played:
+      if not p.rating:
         p.rating = DEFAULT_ELO_RATING
       winner_rating = winner_rating + p.rating
     loser_rating = 0
     for p in losers:
-      if not p.matches_played:
+      if not p.rating:
         p.rating = DEFAULT_ELO_RATING
       loser_rating = loser_rating + p.rating
 
@@ -653,7 +725,6 @@ class SC2Player(db.Model):
       p.rating = p.rating + loser_rating_delta
       if p.rating < 1: p.rating = 1
 
-    return(winner_rating_delta, loser_rating_delta)
 
 class SC2Match(db.Model):
   """Matches are consist of a replay (stored in BlobStore) plus details
@@ -665,11 +736,10 @@ class SC2Match(db.Model):
   winner_keys = db.ListProperty(db.Key)
   winner_races = db.StringListProperty()
   winner_colors = db.StringListProperty()
-  winner_delta = db.IntegerProperty(required=True)
   loser_keys = db.ListProperty(db.Key)
   loser_races = db.StringListProperty()
   loser_colors = db.StringListProperty()
-  loser_delta = db.IntegerProperty(required=True)
+  frozen = db.BooleanProperty(default=False)
   mapname = db.StringProperty(required=True)
   match_date_utc = db.DateTimeProperty(required=True)
   match_date_local = db.DateTimeProperty(required=True)
@@ -698,6 +768,11 @@ class SC2Match(db.Model):
     return "%s|%s|%s" % (
         winner.get_player_key(), loser.get_player_key(), str(timestamp))
 
+  def get_match_key(self):
+    return self.match_key(
+        db.get(self.winner_keys[0]),
+        db.get(self.loser_keys[0]),
+        self.match_date_utc)
 
 def _make_transaction(method, *args):
   return method(*args)

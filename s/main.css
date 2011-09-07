@@ -8,7 +8,6 @@ div.answer {
   margin-right: 10em;
 }
 
-
 div.answer:first-line {
   font-weight: bold;
   font-size: 1.5em;
@@ -56,13 +55,13 @@ td.duration {
   text-align: right;
 }
 
-th, td {
+table th, table td {
   border: 2px inset;
   padding: 2px 5px 2px 5px;
   vertical-align: middle;
 }
 
-th {
+table th {
   background-color: #eee
 }
 
@@ -70,6 +69,14 @@ form, div.contents {
   border: 3px outset;
   background-color: #fff;
   margin: 5px;
+  padding: 5px;
+  display: inline-block;
+}
+
+form.search {
+  border: inherit;
+  background-color: inherit;
+  margin-left: 5em;
   padding: 5px;
   display: inline-block;
 }
