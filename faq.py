@@ -18,12 +18,14 @@ from google.appengine.ext import webapp
 from google.appengine.ext.webapp.util import run_wsgi_app
 
 from laddrslib import util
+from laddrslib.models import FaqEntry
 
 SUPPORT_EMAIL="sc2.laddrs@gmail.com"
 
 class MainPage(webapp.RequestHandler):
   def get(self):
     template_values = util.add_user_tmplvars(self, {
+      'faqs': FaqEntry.get_faqs(),
       'category': self.request.get('category'),
       'summary': self.request.get('summary'),
       'message': self.request.get('message'),
@@ -37,6 +39,28 @@ class MainPage(webapp.RequestHandler):
       return
 
     user = users.get_current_user()
+
+    if self.request.get('update_faq'):
+      if users.is_current_user_admin():
+        if FaqEntry.update_faq(
+            self.request.get('update_faq'),
+            self.request.get('question'),
+            self.request.get('answer'),
+            self.request.get('rank')):
+          util.set_butter("FAQ Updated!")
+      self.redirect("/faq")
+      return
+
+    if self.request.get('new_faq'):
+      if users.is_current_user_admin():
+        if FaqEntry.new_faq(
+            self.request.get('question'),
+            self.request.get('answer'),
+            self.request.get('rank')):
+          util.set_butter("FAQ Created!")
+      self.redirect("/faq")
+      return
+
     category = self.request.get('category')
     summary = self.request.get('summary')
     message = self.request.get('message')
@@ -65,6 +89,7 @@ class MainPage(webapp.RequestHandler):
       return
 
     template_values = util.add_user_tmplvars(self, {
+      'faqs': FaqEntry.get_faqs(),
       'errormsg': errormsg,
       'category': category,
       'summary': summary,

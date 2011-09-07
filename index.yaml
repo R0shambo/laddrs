@@ -10,6 +10,19 @@ indexes:
 # automatically uploaded to the admin console when you next deploy
 # your application using appcfg.py.
 
+- kind: FaqEntry
+  properties:
+  - name: popularity
+    direction: desc
+  - name: orig_rank
+
+- kind: FaqEntry
+  properties:
+  - name: popularity
+    direction: desc
+  - name: orig_rank
+    direction: desc
+
 - kind: Greeting
   ancestor: yes
   properties:
@@ -55,6 +68,12 @@ indexes:
   ancestor: yes
   properties:
   - name: frozen
+  - name: match_date_utc
+    direction: desc
+
+- kind: SC2Match
+  ancestor: yes
+  properties:
   - name: match_date_utc
     direction: desc
 

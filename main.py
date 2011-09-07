@@ -21,8 +21,6 @@ from google.appengine.ext.webapp.util import run_wsgi_app
 from laddrslib import util
 from laddrslib.models import SC2Ladder
 
-from sc2replaylib.replay import Replay, Team, Player
-
 
 class MainPage(webapp.RequestHandler):
   def get(self):

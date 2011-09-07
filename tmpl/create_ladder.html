@@ -6,11 +6,16 @@
  {%include "urchin.html"%}
 </head>
 <body>
- <h1><a href="/">SC2 Laddrs BETA!</a> - Create New Ladder</h1>
- {%if butter%}<div class="butter">{{butter}}</div>{%endif%}
- {% include "create_ladder_form.html" %}
-
+<div id="container">
+ <div id="header">
+  <h1><a href="/">SC2 Laddrs BETA!</a> - Create New Ladder</h1>
+  {%if butter%}<div id="butter">{{butter}}</div>{%endif%}
+ </div>
+ <div id="content">
+  {% include "create_ladder_form.html" %}
+ </div>
  {% include "footer.html" %}
+</div>
 </body>
 </html>
 {%endautoescape%}

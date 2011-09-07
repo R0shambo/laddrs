@@ -1,5 +1,5 @@
 application: laddrs
-version: 3-1-3
+version: 3-1-5
 runtime: python
 api_version: 1
 
@@ -10,9 +10,13 @@ handlers:
 - url: /s
   static_dir: s
 
-- url: /robots.txt
+- url: /favicon.ico
   static_files: s/robots.txt
   upload: s/robots.txt
+
+- url: /robots.txt
+  static_files: s/sc2replay-icon.png
+  upload: s/sc2replay-icon.png
 
 - url: /create_ladder
   script: create_ladder.py

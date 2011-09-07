@@ -5,145 +5,186 @@
  <title>{{ladder.name}} - SC2 Laddrs!</title>
  <link type="text/css" rel="stylesheet" href="/s/main.css" />
  <script src="/s/sorttable.js"></script>
+ <script src="/s/misc.js"></script>
  {%include "urchin.html"%}
 </head>
 <body {%include "tracking.html"%}>
- <h1><a href="/">SC2 Laddrs BETA!</a> - {{ladder.name}}
-   {%if not ladder.public %}(Private){%endif%} Ladder <g:plusone></g:plusone>
- </h1>
- {%if butter%}<div class="butter">{{butter}}</div>{%endif%}
- {%if manage_ladder %}
-  <form method="post">
-   <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
-   <div>Description:<br><textarea required="required" name="description" rows="6" cols="80" spellcheck="true">{{ladder.description}}</textarea></div>
-   <div>Public Ladder: <input onclick="this.form.invite_only.checked=this.checked?this.form.invite_only.checked:true;" type="checkbox" name="public" {%if ladder.public %}checked{%endif%}/><div class="details">List ladder on front page of <a href="/">SC2 Laddrs</a>.</div></div>
-   <div>Invite-Only: <input onclick="this.checked=this.form.public.checked?this.form.invite_only.checked:true;" class="invite_only" type="checkbox" name="invite_only" {%if ladder.invite_only %}checked{%endif%}/><div class="details">Require future players to enter an invite-code in order to join.</div>
-   <div class="regen_invite_code">Regenerate Invite-code: <input type="checkbox" name="regen_invite_code" /><div class="details">Regenerates a new invite-code. Use if your existing invite-code ({{ladder.invite_code}}) has been leaked.</div></div></div>
-   <input type="submit" value="Update" />
-  </form>
- {%else%}
-  {%if ladder.public or user_player %}
-   <p class="description">{{ ladder.description|urlize|linebreaks }}</p>
-  {%endif%}
-  <p class="details">This is a
-   {%if ladder.public %}
-    public
-    {%if ladder.invite_only %}
-     invite-only {{ladder.region|upper}} ladder. {%if user_player%}Invite-code for new players: {{ladder.invite_code}}{%endif%}
-    {%else%}
-     {{ladder.region|upper}} ladder.
-    {%endif%}
-   {%else%}
-    private {{ladder.region|upper}} ladder. {%if user_player%}Invite-code for new players: {{ladder.invite_code}}{%endif%}
-   {%endif%}
-   {%if user_player.admin%}<br><br>You are an admin for this ladder.
-   [{%if manage_ladder%}
-     <a href="/ladder/{{ladder.get_ladder_key}}">Stop Managing Ladder</a>
-    {%else%}
-     <a href="/manage_ladder/{{ladder.get_ladder_key}}">Manage Ladder</a>
-    {%endif%}
-   ]
-   {%endif%}
-  </p>
- {%endif%}
+<div id="container">
 
- {%if ladder.public or user_player %}
-  {%if players%}
-   <h2>Players</h2>
-   <table class="sortable"><tr><th>Rank</th><th>Player</th><th>Rating</th><th>Wins</th><th>Losses</th><th>Last Played</th>{%if manage_ladder%}<th>Admin</th>{%endif%}</tr>
-    {% for player in players|dictsortreversed:"rating" %}<tr {%if player.this_is_you %}class="current_user"{%endif%}>
-     <td align="center">{{forloop.counter|ordinal}}</td>
-     <td class='player-portrait'>{%include "player_portrait.html"%}</td>
-     <td>{{player.rating}}</td>
-     <td>{{player.wins}}</td>
-     <td>{{player.losses}}</td>
-     <td title="{{player.last_played}}"><span class="hidden">{{player.last_played|date:"YmdHis"}} </span>{{player.last_played|naturalday:"M d Y"|capfirst}}</td>
-     {%if manage_ladder%}
-      <td align="center">
-       {%if not player.this_is_you%}
-        {%if player.admin%}
-         <a class="demote-button" href="?action=demote_player;player={{player.get_player_key}};csrf_token={{csrf_token}}"><img border="0" src="/s/archon.png" alt="Demote Admin to Player" title="Demote Admin to Player" /></a>
-        {%else%}
-         <a class="promote-button" href="?action=promote_player;player={{player.get_player_key}};csrf_token={{csrf_token}}"><img border="0" src="/s/ht.png" alt="Promote Player to Admin" title="Promote Player to Admin" /></a>
-        {%endif%}
-       {%else%}
-        You
-       {%endif%}
-      </td>
-     {%endif%}
-    </tr>{%endfor%}
-   </table>
-  {%endif%}
+ <div id="header">
+  <h1><a href="/">SC2 Laddrs BETA!</a> - {{ladder.name}} Ladder <g:plusone></g:plusone>
+  </h1>
+ {%if butter%}<div id="butter">{{butter}}</div>{%endif%}
+ </div>
 
-  {%if new_players%}
-   <h3>New Players</h3>
-   <table class="sortable"><tr><th>Player</th><th>Joined</th>{%if user_player and not user_player.admin and not user_player.matches_played%}<th>Quit</th>{%endif%}{%if manage_ladder%}<th>Admin</th>{%endif%}</tr>
-    {% for player in new_players %}<tr {%if player.this_is_you %}class="current_user"{%endif%}>
-     <td class='player-portrait'>{%include "player_portrait.html"%}</td>
-     <td title="{{player.joined}}"><span class="hidden">{{player.joined|date:"YmdHis"}} </span>{{player.joined|naturalday:"M d Y"|capfirst}}
-      {%if user_player and not user_player.admin and not user_player.matches_played%}
-       <td>
-        {%if player.this_is_you%}
-         <a class="delete-button" onClick='return confirm("Are you sure you want to leave the ladder?");' href="?quit_ladder=true;csrf_token={{csrf_token}}"><img border="0"" src="/s/delete.png" alt="Quit Ladder" title="Quit Ladder" /></a>
-        {%endif%}
-      </td>
-     {%endif%}
-     {%if manage_ladder%}
-      <td align="center">
-       {%if not player.this_is_you%}
-        <a class="delete-button" onClick='return confirm("Are you sure you want to delete {{player.name}}?");' href="?action=delete_player;player={{player.get_player_key}};csrf_token={{csrf_token}}"><img border="0" height="40" src="/s/delete.png" alt="Delete Player" title="Delete Player" /></a>
-        {%if player.admin%}
-         <a class="demote-button" href="?action=demote_player;player={{player.get_player_key}};csrf_token={{csrf_token}}"><img border="0" src="/s/archon.png" alt="Demote Admin to Player" title="Demote Admin to Player" /></a>
-        {%else%}
-         <a class="promote-button" href="?action=promote_player;player={{player.get_player_key}};csrf_token={{csrf_token}}"><img border="0" src="/s/ht.png" alt="Promote Player to Admin" title="Promote Player to Admin" /></a>
-        {%endif%}
-       {%else%}
-        You
-       {%endif%}
-      </td>
-     {%endif%}
-    </tr>{%endfor%}
-   </table>
-  {%endif%}
- {%endif%}
+ <div id="content">
 
- {%if ladder.public or user_player %}
-  <h2>Match History</h2>
-  {%if matches%}
-   <table class="sortable"><tr><th>Date</th><th>Winner</th><th>Loser</th><th>Map</th><th>Duration</th><th>D/L</th>{%if manage_ladder%}<th>Admin</th>{%endif%}</tr>
-    {% for match in matches|dictsortreversed:"match_date_utc" %}
-     <tr {%if match.you_won %}class="user_win"{%else%}
-         {%if match.you_lost %}class="user_loss"{%endif%}{%endif%}>
-     <td title="{{match.match_date_local}}"><span class="hidden">{{match.match_date_local|date:"YmdHis"}} </span>
-      {{match.match_date_local|naturalday:"M d Y"|capfirst}}</td>
-     <td class='player-portrait'>{%for player in match.winners%}{%include "player_portrait.html"%}{%endfor%}</td>
-     <td class='player-portrait'>{%for player in match.losers%}{%include "player_portrait.html"%}{%endfor%}</td>
-     <td><span class="hidden">{{match.mapname|lower}} </span>{{match.mapname}}</td>
-     <td class="duration">{{match.duration}}</td>
-     <td class='player-portrait'><a onclick="_gaq.push(['_trackPageview', '/download/{{ladder.get_ladder_key|urlencode}}/{{match.get_match_key|urlencode}}/{{match.name|slugify}}.SC2Replay']);" href="/download/{{ladder.get_ladder_key|urlencode}}/{{match.get_match_key|urlencode}}/{{match.name|slugify}}.SC2Replay" title="Uploaded {{match.uploaded|naturalday:"M d Y"}} by {{match.uploader.name}} - v{{match.version}}"><img alt="Download Replay" src="/s/sc2replay-icon.png" height="45"/></a></td>
-     {%if manage_ladder%}
-      <td align="center">
-       {%if not match.frozen%}
-       <a class="delete-button" onClick='return confirm("Are you sure you want to delete match?");' href="?action=delete_match;match={{ match.key }};csrf_token={{csrf_token}}"><img border="0" height="40" src="/s/delete.png" alt="Delete Match" title="Delete Match" /></a>
-       {%endif%}
-      </td>
-     {%endif%}
-    </tr>{%endfor%}
-   </table>
+  {%if manage_ladder %}
+   <div class="form" style="float:right;text-align:center">
+     <b>DANGEROUS ADMIN STUFF</b>
+     <form method="post">
+      <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
+      <input type="hidden" name="action" value="delete_all_the_matches" />
+      <input type="submit" onclick='return confirm("Are you sure you want to delete all the matches uploaded to this ladder? THIS CANNOT BE UNDONE!");' value="DELETE ALL THE MATCHES" />
+     </form>
+   </div>
+
+   <form method="post">
+    <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
+    <input type="hidden" name="action" value="update_ladder" />
+    <div>Description:<br><textarea required="required" name="description" rows="6" cols="80" spellcheck="true">{{ladder.description}}</textarea></div>
+    <div>Public Ladder: <input onclick="this.form.invite_only.checked=this.checked?this.form.invite_only.checked:true;" type="checkbox" name="public" {%if ladder.public %}checked{%endif%}/><div class="details">List ladder on front page of <a href="/">SC2 Laddrs</a>.</div></div>
+    <div>Invite-Only: <input onclick="this.checked=this.form.public.checked?this.form.invite_only.checked:true;" class="invite_only" type="checkbox" name="invite_only" {%if ladder.invite_only %}checked{%endif%}/><div class="details">Require future players to enter an invite-code in order to join.</div>
+    <div class="regen_invite_code">Regenerate Invite-code: <input type="checkbox" name="regen_invite_code" /><div class="details">Regenerates a new invite-code. Use if your existing invite-code ({{ladder.invite_code}}) has been leaked.</div></div></div>
+    <input type="submit" value="Update" />
+   </form>
   {%else%}
-   No one has uploaded any matches yet. {%if user_player %}What are you waiting for? Go play!!{%endif%}
+
+   {%if user_player %}
+    <div class="player_info form" style="float:right;max-width:400px;">
+     <input style="float:right" type="button" value="show" onclick='this.value=this.value=="show"?"hide":"show";toggle_visibility("player_info_form");' />
+     <b>Your Player Info&nbsp;</b>
+     <form id="player_info_form" method="post" style="display:none;">
+      <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
+      <div>Members-Only Nickname:
+       <input type="text" name="nickname" value="{{user_player.nickname}}" size="30"/>
+       <div class="details">Nickname shown to ladder members only.</div>
+      </div><br>
+      <div>Members-Only Email Address Display:
+       <input type="checkbox" name="email" {%if user_player.email %}checked="checked"{%endif%} />
+       <div class="details">Check to allow ladder members to see your {{user.email}} email address. Displaying your email address will make it easier for other ladder members to schedule matches with you, but you may not want to show it for privacy reasons.</div>
+      </div><br>
+      <input type="hidden" name="action" value="update_userplayer" />
+      <input type="submit" value="Update Info" />
+     </form>
+    </div>
+   {%endif%}
+
+   {%if ladder.public or user_player %}
+    <div class="description">{{ ladder.description|urlize|linebreaks }}</div>
+   {%endif%}
+   <div class="details">This is a
+    {%if ladder.public %}
+     public
+     {%if ladder.invite_only %}
+      invite-only {{ladder.region|upper}} ladder. {%if user_player%}Invite-code for new players: {{ladder.invite_code}}{%endif%}
+     {%else%}
+      {{ladder.region|upper}} ladder.
+     {%endif%}
+    {%else%}
+     private {{ladder.region|upper}} ladder. {%if user_player%}Invite-code for new players: {{ladder.invite_code}}{%endif%}
+    {%endif%}
+    {%if user_player.admin%}<br><br>You are an admin for this ladder.
+    [{%if manage_ladder%}
+      <a href="/ladder/{{ladder.get_ladder_key}}">Stop Managing Ladder</a>
+     {%else%}
+      <a href="/manage_ladder/{{ladder.get_ladder_key}}">Manage Ladder</a>
+     {%endif%}
+    ]
+    {%endif%}
+   </div>
   {%endif%}
- {%endif%}
 
- {%if user_player %}
-  {%include "upload_match.html"%}
- {%else%}
-  <a name="join"></a>
-  <h3>Join This Ladder</h3>
-  {%include "join_ladder_form.html"%}
- {%endif%}
+  {%if ladder.public or user_player %}
+   {%if players%}
+    <h2>Players</h2>
+    <table class="sortable"><tr><th>Rank</th><th>Player</th>{%if user_player%}<th>Nickname</th>{%endif%}<th>Rating</th><th>Wins</th><th>Losses</th><th>Last Played</th>{%if manage_ladder%}<th>Admin</th>{%endif%}</tr>
+     {% for player in players|dictsortreversed:"rating" %}<tr {%if player.this_is_you %}class="current_user"{%endif%}>
+      <td align="center">{{forloop.counter|ordinal}}</td>
+      <td class='player-portrait'>{%include "player_portrait.html"%}</td>
+      {%if user_player%}<td>{%if player.email%}<a href="mailto:{{player.email}}">{%endif%}{{player.nickname}}{%if player.email%}</a>{%endif%}</td>{%endif%}
+      <td>{{player.rating}}</td>
+      <td>{{player.wins}}</td>
+      <td>{{player.losses}}</td>
+      <td title="{{player.last_played}}"><span class="hidden">{{player.last_played|date:"YmdHis"}} </span>{{player.last_played|naturalday:"M d Y"|capfirst}}</td>
+      {%if manage_ladder%}
+       <td align="center">
+        {%if not player.this_is_you%}
+         {%if player.admin%}
+          <a class="demote-button" href="?action=demote_player;player={{player.get_player_key}};csrf_token={{csrf_token}}"><img border="0" src="/s/archon.png" alt="Demote Admin to Player" title="Demote Admin to Player" /></a>
+         {%else%}
+          <a class="promote-button" href="?action=promote_player;player={{player.get_player_key}};csrf_token={{csrf_token}}"><img border="0" src="/s/ht.png" alt="Promote Player to Admin" title="Promote Player to Admin" /></a>
+         {%endif%}
+        {%else%}
+         You
+        {%endif%}
+       </td>
+      {%endif%}
+     </tr>{%endfor%}
+    </table>
+   {%endif%}
 
+   {%if new_players%}
+    <h3>New Players</h3>
+    <table class="sortable"><tr><th>Player</th>{%if user_player%}<th>Nickname</th>{%endif%}<th>Joined</th>{%if user_player and not user_player.admin and not user_player.matches_played%}<th>Quit</th>{%endif%}{%if manage_ladder%}<th>Admin</th>{%endif%}</tr>
+     {% for player in new_players %}<tr {%if player.this_is_you %}class="current_user"{%endif%}>
+      <td class='player-portrait'>{%include "player_portrait.html"%}</td>
+      {%if user_player%}<td>{%if player.email%}<a href="mailto:{{player.email}}">{%endif%}{{player.nickname}}{%if player.email%}</a>{%endif%}</td>{%endif%}
+      <td title="{{player.joined}}"><span class="hidden">{{player.joined|date:"YmdHis"}} </span>{{player.joined|naturalday:"M d Y"|capfirst}}
+       {%if user_player and not user_player.admin and not user_player.matches_played%}
+        <td>
+         {%if player.this_is_you%}
+          <a class="delete-button" onClick='return confirm("Are you sure you want to leave the ladder?");' href="?quit_ladder=true;csrf_token={{csrf_token}}"><img border="0"" src="/s/delete.png" alt="Quit Ladder" title="Quit Ladder" /></a>
+         {%endif%}
+       </td>
+      {%endif%}
+      {%if manage_ladder%}
+       <td align="center">
+        {%if not player.this_is_you%}
+         <a class="delete-button" onClick='return confirm("Are you sure you want to delete {{player.name}}?");' href="?action=delete_player;player={{player.get_player_key}};csrf_token={{csrf_token}}"><img border="0" height="40" src="/s/delete.png" alt="Delete Player" title="Delete Player" /></a>
+         {%if player.admin%}
+          <a class="demote-button" href="?action=demote_player;player={{player.get_player_key}};csrf_token={{csrf_token}}"><img border="0" src="/s/archon.png" alt="Demote Admin to Player" title="Demote Admin to Player" /></a>
+         {%else%}
+          <a class="promote-button" href="?action=promote_player;player={{player.get_player_key}};csrf_token={{csrf_token}}"><img border="0" src="/s/ht.png" alt="Promote Player to Admin" title="Promote Player to Admin" /></a>
+         {%endif%}
+        {%else%}
+         You
+        {%endif%}
+       </td>
+      {%endif%}
+     </tr>{%endfor%}
+    </table>
+   {%endif%}
+  {%endif%}
+
+  {%if ladder.public or user_player %}
+   <h2>Match History</h2>
+   {%if matches%}
+    <table class="sortable"><tr><th>Date</th><th>Winner</th><th>Loser</th><th>Map</th><th>Duration</th><th>D/L</th>{%if manage_ladder%}<th>Admin</th>{%endif%}</tr>
+     {% for match in matches %}
+      <tr {%if match.you_won %}class="user_win"{%else%}
+          {%if match.you_lost %}class="user_loss"{%endif%}{%endif%}>
+      <td title="{{match.match_date_local}}"><span class="hidden">{{match.match_date_local|date:"YmdHis"}} </span>
+       {{match.match_date_local|naturalday:"M d Y"|capfirst}} {%if match.frozen%}F{%endif%}</td>
+      <td class='player-portrait'>{%for player in match.winners%}{%include "player_portrait.html"%}{%endfor%}</td>
+      <td class='player-portrait'>{%for player in match.losers%}{%include "player_portrait.html"%}{%endfor%}</td>
+      <td><span class="hidden">{{match.mapname|lower}} </span>{{match.mapname}}</td>
+      <td class="duration">{{match.duration}}</td>
+      <td class='player-portrait'><a onclick="_gaq.push(['_trackPageview', '/download/{{ladder.get_ladder_key|urlencode}}/{{match.get_match_key|urlencode}}/{{match.name|slugify}}.SC2Replay']);" href="/download/{{ladder.get_ladder_key|urlencode}}/{{match.get_match_key|urlencode}}/{{match.name|slugify}}.SC2Replay" title="Uploaded {{match.uploaded|naturalday:"M d Y"}} by {{match.uploader.name}} - v{{match.version}}"><img alt="Download Replay" src="/s/sc2replay-icon.png" height="45"/></a></td>
+      {%if manage_ladder%}
+       <td align="center">
+        {%if match.frozen%}FROZEN{%else%}
+        <a class="delete-button" onClick='return confirm("Are you sure you want to delete match?");' href="?action=delete_match;match={{ match.key }};csrf_token={{csrf_token}}"><img border="0" height="40" src="/s/delete.png" alt="Delete Match" title="Delete Match" /></a>
+        {%endif%}
+       </td>
+      {%endif%}
+     </tr>{%endfor%}
+    </table>
+   {%else%}
+    Apparently, the combined APM for this ladder is a big fat ZERO. No one has played a match. {%if user_player %}What are you waiting for? Go play!!{%endif%}
+   {%endif%}
+  {%endif%}
+
+  {%if user_player %}
+   {%include "upload_match.html"%}
+  {%else%}
+   <a name="join"></a>
+   <h3>Join This Ladder</h3>
+   {%include "join_ladder_form.html"%}
+  {%endif%}
+ </div>
  {% include "footer.html" %}
+</div>
 </body>
 </html>
 {%endautoescape%}

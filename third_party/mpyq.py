@@ -5,13 +5,13 @@
 mpyq is a Python library for reading MPQ (MoPaQ) archives.
 """
 
-import argparse
+from third_party import argparse
 import bz2
 import cStringIO
 import os
 import struct
 import zlib
-from collections26 import namedtuple
+from third_party.collections26 import namedtuple
 
 
 __author__ = "Aku Kotkavuo"

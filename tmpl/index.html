@@ -9,54 +9,60 @@
  {%include "urchin.html"%}
 </head>
 <body>
- <h1><a href="/">SC2 Laddrs BETA!</a> <g:plusone></g:plusone></h1>
- {%if butter%}<div class="butter">{{butter}}</div>{%endif%}
- {% if user %}
-  <h2>{{user.nickname|capfirst}}'s Ladders</h2>
-  {% if user_ladders %}
+<div id="container">
+ <div id="header">
+  <h1><a href="/">SC2 Laddrs BETA!</a> <g:plusone></g:plusone></h1>
+  {%if butter%}<div id="butter">{{butter}}</div>{%endif%}
+ </div>
+
+ <div id="content">
+  {% if user %}
+   <h2>{{user.nickname|capfirst}}'s Ladders</h2>
+   {% if user_ladders %}
+    <table class="sortable">
+     <tr><th>Ladder</th><th>Rank</th><th>Wins</th><th>Losses</th><th>Players</th><th>Region</th><th>Description</th></tr>
+     {% for ladder in user_ladders|dictsort:"name" %}
+      <tr>
+       <td><a href="/ladder/{{ladder.get_ladder_key|urlencode}}">{{ladder.name}}</a></td>
+       <td align="right">{%if ladder.user_player.matches_played%}{{ladder.user_player.rank|ordinal}}{%else%}Unranked{%endif%}</td>
+       <td align="right">{{ladder.user_player.wins}}</td>
+       <td align="right">{{ladder.user_player.losses}}</td>
+       <td align="right">{{ ladder.players }}</td>
+      <td>{{ ladder.region|upper }}
+       <td>{{ladder.description|truncatewords:12|urlizetrunc:15}}</td>
+      </tr>
+     {% endfor %}
+    </table>
+   {% else %}
+    Aww! You haven't joined any ladders. Join a public ladder below, or
+    <a href="#create">create a ladder below</a>.
+   {% endif %}
+  {% endif %}
+
+
+  <h2>Public Ladders <!--%if public_ladders% %include "search_box.html"% %endif%--></h2>
+   {% if public_ladders %}
    <table class="sortable">
-    <tr><th>Ladder</th><th>Rank</th><th>Wins</th><th>Losses</th><th>Players</th><th>Region</th><th>Description</th></tr>
-    {% for ladder in user_ladders|dictsort:"name" %}
+    <tr><th>Ladder</th><th>Matches</th><th>Players</th><th>Region</th><th>Description</th></tr>
+    {% for ladder in public_ladders|dictsort:"matches_played" %}
      <tr>
-      <td><a href="/ladder/{{ladder.get_ladder_key|urlencode}}">{{ladder.name}}</a></td>
-      <td align="right">{%if ladder.user_player.matches_played%}{{ladder.user_player.rank|ordinal}}{%else%}Unranked{%endif%}</td>
-      <td align="right">{{ladder.user_player.wins}}</td>
-      <td align="right">{{ladder.user_player.losses}}</td>
+      <td><a href="/ladder/{{ladder.get_ladder_key|urlencode}}">{{ ladder.name }}</a></td>
+      <td align="right">{{ ladder.matches_played }}</td>
       <td align="right">{{ ladder.players }}</td>
-     <td>{{ ladder.region|upper }}
-      <td>{{ladder.description|truncatewords:12|urlizetrunc:15}}</td>
+      <td>{{ ladder.region|upper }}
+      <td>{{ ladder.description|truncatewords:12|urlizetrunc:15}}</td>
      </tr>
     {% endfor %}
    </table>
   {% else %}
-   Aww! You haven't joined any ladders. Join a public ladder below, or
-   <a href="#create">create a ladder below</a>.
+   WHTF! No public ladders? I guess everyone is suffering from ladder anxiety.
+   If you are brave enough, you could <a href="#create">create a public ladder below</a>.
   {% endif %}
- {% endif %}
 
-
- <h2>Public Ladders <!--%if public_ladders% %include "search_box.html"% %endif%--></h2>
-  {% if public_ladders %}
-  <table class="sortable">
-   <tr><th>Ladder</th><th>Matches</th><th>Players</th><th>Region</th><th>Description</th></tr>
-   {% for ladder in public_ladders|dictsort:"matches_played" %}
-    <tr>
-     <td><a href="/ladder/{{ladder.get_ladder_key|urlencode}}">{{ ladder.name }}</a></td>
-     <td align="right">{{ ladder.matches_played }}</td>
-     <td align="right">{{ ladder.players }}</td>
-     <td>{{ ladder.region|upper }}
-     <td>{{ ladder.description|truncatewords:12|urlizetrunc:15}}</td>
-    </tr>
-   {% endfor %}
-  </table>
- {% else %}
-  WHTF! No public ladders? I guess everyone is suffering from ladder anxiety.
-  If you are brave enough, you could <a href="#create">create a public ladder below</a>.
- {% endif %}
-
- {% include "create_ladder_form.html" %}
-
+  {% include "create_ladder_form.html" %}
+ </div>
  {% include "footer.html" %}
+</div>
 </body>
 </html>
 {%endautoescape%}

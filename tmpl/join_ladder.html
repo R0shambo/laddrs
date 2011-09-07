@@ -6,12 +6,16 @@
  {%include "urchin.html"%}
 </head>
 <body>
- <h1><a href="/">SC2 Laddrs BETA!</a> - <a href="/ladder/{{ladder.get_ladder_key}}">{{ladder.name}}
- {%if butter%}<div class="butter">{{butter}}</div>{%endif%}
-   {%if not ladder.public %}(Private){%endif%} Ladder</a> - Join
- </h1>
- {%include "join_ladder_form.html"%}
-
+<div id="container">
+ <div id="header">
+  <h1><a href="/">SC2 Laddrs BETA!</a> - <a href="/ladder/{{ladder.get_ladder_key}}">{{ladder.name}}
+    Ladder</a> - Join
+  </h1>
+  {%if butter%}<div id="butter">{{butter}}</div>{%endif%}
+ </div>
+ <div id="content">
+  {%include "join_ladder_form.html"%}
+ </div>
  {% include "footer.html" %}
 </body>
 </html>

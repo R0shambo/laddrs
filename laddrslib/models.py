@@ -1,6 +1,7 @@
 import datetime
 import logging
 import math
+import os
 import random
 import re
 import string
@@ -15,23 +16,22 @@ from google.appengine.ext import db
 
 from laddrslib import util
 
-from sc2ranks import Sc2Ranks
-from sc2replaylib.replay import Replay
+from third_party.sc2ranks import Sc2Ranks
+from third_party.sc2replaylib.replay import Replay
 
 MC_EXP_SHORT=60
 MC_EXP_MED=1200
 MC_EXP_LONG=86400
 
-MC_PL="public-ladders"
-MC_L4U="ladders-for-user"
-MC_M4L="matches-for-ladder"
-MC_P4L="players-for-ladder"
+MC_PL="public-ladders_v1"
+MC_L4U="ladders-for-user_v1"
+MC_M4L="matches-for-ladder_v1"
+MC_P4L="players-for-ladder_v1"
 MC_SC2RP="sc2rank-player"
-MC_MATCHES="matches"
+MC_MATCHES="matches_v1"
+MC_FAQS="faqs_v1"
 
-DEFAULT_ELO_RATING=1600
-
-MAX_UNFROZEN_MATCHES=500
+MAX_UNFROZEN_MATCHES=300
 
 GAMETYPE_RE = re.compile("\dv\d")
 PUNCTUATION_RE = re.compile("[%s]" % re.escape(string.punctuation))
@@ -174,6 +174,7 @@ class SC2Ladder(db.Model):
           parent=self,
           key_name=SC2Player.player_key(player_name, bnet_id),
           name=player_name,
+          nickname=player_name,
           bnet_id=bnet_id,
           code=char_code,
           user_id=user.user_id(),
@@ -252,9 +253,9 @@ class SC2Ladder(db.Model):
     # we'll need to freeze the extras.
     matches_to_freeze = len(match_history) - MAX_UNFROZEN_MATCHES
     # okay now iterate through all the matches to replay rating adjustments.
+    frozened_match_keys = []
     for match in match_history:
-      logging.info("replaying match %s %s %s", self.get_ladder_key(),
-          match.get_match_key(), match.name)
+      logging.info("replaying match %s (%s)", match.name, match.get_match_key())
       # recreate list of winners and losers from historical match
       winning_players = [players[k] for k in match.winner_keys]
       losing_players = [players[k] for k in match.loser_keys]
@@ -263,18 +264,23 @@ class SC2Ladder(db.Model):
         logging.info("freezing match %s", match.get_match_key())
         match.frozen = True
         match.put()
+        frozened_match_keys.append(match.key())
+        matches_to_freeze = matches_to_freeze - 1
         # set frozen ratings for all players to their currently calculated
         # rating.
         for player in players.itervalues():
           player.frozen_rating = player.rating
 
     # all done. return player list so they can be saved.
-    return players
+    return (players, frozened_match_keys)
 
   def add_match(self, user_player, replay_data, filename, force=False):
     if not db.is_in_transaction():
-      (new_match, players) = db.run_in_transaction(_make_transaction,
-          self.add_match, user_player, replay_data, filename, force)
+      (new_match, players, frozened_match_keys) = db.run_in_transaction(
+          _make_transaction, self.add_match, user_player, replay_data, filename,
+          force)
+      memcache.delete_multi(
+          [k.name() for k in frozened_match_keys], namespace=MC_MATCHES)
       memcache.delete_multi([p.user_id for p in players], namespace=MC_L4U)
       memcache.delete(self.get_ladder_key(), namespace=MC_P4L)
       memcache.delete(self.get_ladder_key(), namespace=MC_M4L)
@@ -389,7 +395,8 @@ class SC2Ladder(db.Model):
       # Now we do the meaty work of pulling down match history so we can insert
       # the match into the proper place in time and accurately adjust player
       # ratings.
-      players = self._reticulate_match_history(add_match=new_match)
+      (players, frozened_match_keys) = self._reticulate_match_history(
+          add_match=new_match)
 
       # match history has been completely replayed yay!
       # replace winners and losers with reticulated players.
@@ -414,17 +421,25 @@ class SC2Ladder(db.Model):
       players = [p for p in players.itervalues()]
       db.put([self, new_match] + players)
 
-      return (new_match, players)
+      return (new_match, players, frozened_match_keys)
 
   def remove_match(self, match):
     if not db.is_in_transaction():
-      players = db.run_in_transaction(_make_transaction, self.remove_match, match)
+      (players, _) = db.run_in_transaction(_make_transaction,
+          self.remove_match, match)
       memcache.delete_multi([p.user_id for p in players], namespace=MC_L4U)
+      memcache.delete(match.key().name(), namespace=MC_MATCHES)
       memcache.delete(self.get_ladder_key(), namespace=MC_P4L)
       memcache.delete(self.get_ladder_key(), namespace=MC_M4L)
       if self.public:
         memcache.delete(MC_PL)
     else:
+      # refetch match as part of transaction
+      match = SC2Match.get(match.key())
+
+      # match may already have been removed
+      if not match: return []
+
       if match.frozen:
         raise SC2Match.MatchFrozen()
       # make sure there's not funny business going on.
@@ -453,6 +468,37 @@ class SC2Ladder(db.Model):
       match.delete()
       return players
 
+  def remove_all_the_matches(self):
+    if not db.is_in_transaction():
+      (match_keys, players) = db.run_in_transaction(_make_transaction,
+          self.remove_all_the_matches)
+      memcache.delete_multi(
+          [k.name() for k in match_keys], namespace=MC_MATCHES)
+      memcache.delete_multi([p.user_id for p in players], namespace=MC_L4U)
+      memcache.delete(self.get_ladder_key(), namespace=MC_P4L)
+      memcache.delete(self.get_ladder_key(), namespace=MC_M4L)
+      if self.public:
+        memcache.delete(MC_PL)
+    else:
+      # get all the matches, then delete them.s
+      match_keys = [k for k in SC2Match.all(keys_only=True).ancestor(self)]
+      db.delete_async(match_keys)
+      # get all the players and zero their ratings.
+      players = [p for p in self.get_players(fast=True)]
+      for player in players:
+        player.rating = 0
+        player.frozen_rating = 0
+        player.wins = 0
+        player.losses = 0
+        player.matches_played = 0
+
+      self.matches_played = 0
+
+      # SAVE ALL THE THINGS!
+      db.put([self] + players)
+      return (match_keys, players)
+
+
   @classmethod
   def get_ladder(cls, ladder_key):
     """Retrieves a SC2Ladder object from the datastore."""
@@ -477,9 +523,9 @@ class SC2Ladder(db.Model):
       logging.info("fetching players for %s", user.nickname())
       players = SC2Player.gql("WHERE user_id = :1", user.user_id())
       for player in players:
-        logging.info("get ladder for player %s" % player.name)
+        #logging.info("get ladder for player %s" % player.name)
         ladder = player.get_ladder()
-        logging.info("got ladder %s" % ladder.get_ladder_key())
+        #logging.info("got ladder %s" % ladder.get_ladder_key())
         ladder.user_player = player
         ladder.user_player.rank = SC2Player.gql(
             "WHERE ANCESTOR IS :1 AND rating > :2",
@@ -497,51 +543,66 @@ class SC2Ladder(db.Model):
 
   def get_matches(self, user=None):
 
-    matches = memcache.get(self.get_ladder_key(), namespace=MC_M4L)
-    if not matches:
-      logging.info("fetching matches for %s", self.get_ladder_key())
-      matches = SC2Match.gql(
-          "WHERE ANCESTOR IS :1", self.key())
+    match_keys = memcache.get(self.get_ladder_key(), namespace=MC_M4L)
+    if not match_keys:
+      logging.info("fetching match keys for %s", self.get_ladder_key())
+      query = SC2Match.all(keys_only=True).ancestor(self)
+      query.order('-match_date_utc')
+      match_keys = [k for k in query]
       memcache.add(
-          self.get_ladder_key(), [m for m in matches], namespace=MC_M4L, time=MC_EXP_MED)
+          self.get_ladder_key(), match_keys, namespace=MC_M4L, time=MC_EXP_MED)
+    #logging.info("%s match keys: %s", self.get_ladder_key(), str(match_keys))
+    matches = memcache.get_multi([k.name() for k in match_keys],
+        namespace=MC_MATCHES)
+    #logging.info("memcached matches: %s", str(matches))
+    fetch_keys = []
+    for key in match_keys:
+      if not key.name() in matches:
+        fetch_keys.append(key)
+    # fetch any matches not found in memcache.
+    if fetch_keys:
+      logging.info("fetching %d matches for %s", len(fetch_keys),
+          self.get_ladder_key())
+      fetched_matches = SC2Match.get(fetch_keys)
+      #logging.info("fetched matches: %s", str(fetched_matches))
+      recache = {}
+      for (key, match) in zip(fetch_keys, fetched_matches):
+        #logging.info("fetched %s for %s", str(match), str(key))
+        # this line is literally to force the datastore to fetch the uploading
+        # player object so it can be cached along with everything else.
+        match.uploader = match.uploader
+        # start query for losers asynchronously
+        loser_query = db.get_async(match.loser_keys)
+        # then block on winners so we can iterate through them.
+        match.winners = db.get(match.winner_keys)
+        for (player, race, color) in zip(match.winners,
+            match.winner_races, match.winner_colors):
+          player.race = race
+          player.color = color
+          player.portrait = player.get_portrait(self.region)
+        # block on losers and iterate.
+        match.losers = loser_query.get_result()
+        for (player, race, color) in zip(match.losers,
+            match.loser_races, match.loser_colors):
+          player.race = race
+          player.color = color
+          player.portrait = player.get_portrait(self.region)
+        matches[key.name()] = match
+        recache[key.name()] = match
+      memcache.add_multi(recache, namespace=MC_MATCHES)
 
-    beefy_matches = []
-    for match in matches:
-      mc = memcache.get(match.get_match_key(), namespace=MC_MATCHES)
-      if mc:
-        beefy_matches.append(mc)
-        continue
-      # this line is literally to force the datastore to fetch the uploading
-      # player object so it can be cached along with everything else.
-      match.uploader = match.uploader
-      # start query for losers asynchronously
-      loser_query = db.get_async(match.loser_keys)
-      # then block on winners so we can iterate through them.
-      match.winners = db.get(match.winner_keys)
-      for (player, race, color) in zip(match.winners,
-          match.winner_races, match.winner_colors):
-        player.race = race
-        player.color = color
-        player.portrait = player.get_portrait(self.region)
-      # block on losers and iterate.
-      match.losers = loser_query.get_result()
-      for (player, race, color) in zip(match.losers,
-          match.loser_races, match.loser_colors):
-        player.race = race
-        player.color = color
-        player.portrait = player.get_portrait(self.region)
-      beefy_matches.append(match)
-      memcache.set(match.get_match_key(), match, namespace=MC_MATCHES)
-
+    ordered_matches = []
     # flag matches owned by the current user.
-    for match in beefy_matches:
+    for key in match_keys:
+      match = matches[key.name()]
       for player in match.winners:
         if user and player.user_id == user.user_id():
           match.you_won = True
       for player in match.losers:
         if user and player.user_id == user.user_id():
           match.you_lost = True
-    return beefy_matches
+      ordered_matches.append(match)
+    return ordered_matches
 
   def get_player(self, player_name, bnet_id):
     """Retrieves a SC2Player object from the datastore."""
@@ -625,6 +686,8 @@ class SC2Player(db.Model):
   code = db.StringProperty(required=True)
   user_id = db.StringProperty(required=True)
   joined = db.DateTimeProperty(auto_now_add=True)
+  nickname = db.StringProperty()
+  email = db.StringProperty()
   admin = db.BooleanProperty()
   rating = db.IntegerProperty(default=0)
   frozen_rating = db.IntegerProperty(default=0)
@@ -667,6 +730,18 @@ class SC2Player(db.Model):
       memcache.delete(self.get_ladder().get_ladder_key(), namespace=MC_P4L)
       return True
 
+  def set_player_info(self, nickname, email):
+    if not db.is_in_transaction():
+      return db.run_in_transaction(_make_transaction,
+        self.set_player_info, nickname, email)
+    else:
+      self.nickname = nickname
+      self.email = email
+      self.put()
+      memcache.delete(self.get_ladder().get_ladder_key(), namespace=MC_P4L)
+      return True
+
+
   def sc2rank_player_key(self, region):
     return "%s/%s/%s" % (region, self.name, self.bnet_id)
 
@@ -691,7 +766,7 @@ class SC2Player(db.Model):
 
   def get_portrait(self, region, size=45):
     """Returns the data needed to render the starcraft profile image."""
-    logging.debug("getting portrait for %s/%s", self.name, self.bnet_id)
+    #logging.debug("getting portrait for %s/%s", self.name, self.bnet_id)
     base_character = self.get_sc2rank(region)
     if base_character:
       try:
@@ -741,13 +816,13 @@ class SC2Player(db.Model):
     for p in winners:
       old_rating = p.rating
       p.rating = p.rating + winner_rating_delta
-      logging.debug("winning player %s rating %d -> %d",
+      logging.info("winning player %s rating %d -> %d",
           p.name, old_rating, p.rating)
     for p in losers:
       old_rating = p.rating
       p.rating = p.rating + loser_rating_delta
       if p.rating < 1: p.rating = 1
-      logging.debug("losing player %s rating %d -> %d",
+      logging.info("losing player %s rating %d -> %d",
           p.name, old_rating, p.rating)
 
 
@@ -758,7 +833,6 @@ class SC2Match(db.Model):
   uploader = db.ReferenceProperty(SC2Player, collection_name='uploads')
   replay = db.BlobProperty(required=True)
   filename = db.StringProperty()
-  identifier = db.StringProperty()
   uploaded = db.DateTimeProperty(auto_now_add=True)
   winner_keys = db.ListProperty(db.Key)
   winner_races = db.StringListProperty()
@@ -779,7 +853,11 @@ class SC2Match(db.Model):
     pass
   class MatchAlreadyExists(Exception):
     pass
+  class MatchFrozen(Exception):
+    pass
   class NotReplayOfUploader(Exception):
+    pass
+  class ReplayIsTooOld(Exception):
     pass
   class ReplayHasNoWinner(Exception):
     pass
@@ -790,14 +868,53 @@ class SC2Match(db.Model):
   class WinnerNotInLadder(Exception):
     pass
 
+  @classmethod
+  def calc_rating_period(cls, dt):
+    week = int(dt.strftime("%W"))
+    year = dt.year
+    if week == 53:
+      year = year + 1
+      week == 0
+    return year * 100 + week
+
   def get_match_key(self):
     return self.key().id_or_name()
 
+  def get_rating_period(self):
+    return self.calc_rating_period(self.match_date_utc)
+
+
+class FaqEntry(db.Model):
+  question = db.StringProperty(required=True)
+  answer = db.TextProperty(required=True)
+  popularity = db.IntegerProperty(default=0)
+  rank = db.IntegerProperty(default=0)
+
+  @classmethod
+  def get_faqs(cls):
+    faqs = memcache.get(MC_FAQS)
+    if not faqs:
+      faqs = [f for f in cls.all().order("rank")]
+      memcache.set(MC_FAQS, faqs)
+    return faqs
+
+  @classmethod
+  def update_faq(cls, key, question, answer, rank):
+    faq = cls.get(key)
+    if faq:
+      faq.question = question
+      faq.answer = answer
+      faq.rank = int(rank)
+      faq.put()
+      memcache.delete(MC_FAQS)
+      return True
+
+  @classmethod
+  def new_faq(cls, question, answer, rank):
+    faq = cls(question=question, answer=answer, rank=int(rank))
+    faq.put()
+    memcache.delete(MC_FAQS)
+    return faq
+
 def _make_transaction(method, *args):
   return method(*args)
-
-def as_iterable(arg):
-  try:
-    return iter(arg)
-  except TypeError:
-    return (arg,)

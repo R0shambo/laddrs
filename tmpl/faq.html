@@ -8,58 +8,85 @@
  {%include "urchin.html"%}
 </head>
 <body>
- <h1><a href="/">SC2 Laddrs BETA!</a> - Frequently Asked Questions <g:plusone></g:plusone></h1>
- {%if butter%}<div class="butter">{{butter}}</div>{%endif%}
- <div class="contents">
-   <ol>
-    {%for faq in faqs%}
-     <li><a href="#{{faq.question|truncatewords:"7"|slugify}}">{{faq.question}}</a></li>
-    {%endfor%}
-    <li><a href="#what-if-my-question-is-not-answered">What if my question is not answered in this FAQ?</a></li>
-   </ul>
+<div id="container">
+ <div id="header">
+  <h1><a href="/">SC2 Laddrs BETA!</a> - Frequently Asked Questions <g:plusone></g:plusone></h1>
+  {%if butter%}<div id="butter">{{butter}}</div>{%endif%}
  </div>
- {%if site_admin%}
- <h2 class="question">Q: Am I a Site Admin?</h2>
- <div class="answer">A: Yes!</div>
- {%endif%}
 
- {%for faq in faqs%}
-  <a name="{{faq.question|truncatewords:"7"|slugify}}"></a>
-  <h2 class="question">Q: {{faq.question}}</h2>
-  <div class="answer">{{ladder.description|urlize|linebreaks}}</div>
- {%endfor%}
-  <a name="what-if-my-question-is-not-answered"></a>
-  <h2 class="question">Q: What if my question is not answered above?</h2>
-  <div class="answer">A: Contact SC2 Laddrs Support using the form below!
-  {% if user %}
-   {% if errormsg %}<div class="error">{% include "tableflipper.html" %} {{errormsg|escape}}</div>{%endif%}
-   <form action="/faq#what-if-my-question-is-not-answered" method="post" enctype="multipart/form-data">
-    <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
-    <!-- {{ category }} -->
-    <div>Category: <select name="category">
-      <option value="MISC" {%ifequal category "MISC"%}selected="selected"{%endifequal%}>Miscellaneous Feedback</option>
-      <option value="FTR" {%ifequal category "FTR"%}selected="selected"{%endifequal%}>Feature Request</option>
-      <option value="REPLAY" {%ifequal category "REPLAY"%}selected="selected"{%endifequal%}>Trouble Uploading Replay</option>
-      <option value="BUG" {%ifequal category "BUG"%}selected="selected"{%endifequal%}>Bug Report</option>
-     </select>
-    </div>
-    <div>From: {{user.email}}</div>
-    <div>To: SC2 Laddrs Support</div>
-    <div>Summary: <input required="required" type="text" name="summary" size="60" value="{{summary}}" placeholder="Just wanted to say SC2 Laddrs is awesome!"/></div>
-    <div>
-     <textarea required="required" name="message" rows="30" cols="100" spellcheck="true"
-      placeholder="Seriously, Man! It's just awesome. So, I guess my question is, how'd you get so awesome? -Love, {{user.nickname}}">{{message}}</textarea></div>
-    <div class="attachment">Attachment: <input type="file" name="attachment"></div>
-    <div><input type="submit" value="Send!"></div>
-   </form>
-  {% else %}<br>
-   But first, you must <a href="{{ auth_url }}">{{ auth_url_linktext }}</a> if you want
-   to contact us. Why do we want you to login first? So our time isn't wasted by
-   <a href="http://www.spamlaws.com/contact-form-spam.html">spammers</a> filling out our contact form.
-  {% endif %}
+ <div id="content">
+  <div class="contents">
+    <ol>
+     {%for faq in faqs%}
+      <li><a href="#{{faq.question|truncatewords:"7"|slugify}}">{{faq.question}}</a></li>
+     {%endfor%}
+     <li><a href="#what-if-my-question-is-not-answered">What if my question is not answered in this FAQ?</a></li>
+    </ul>
   </div>
+  {%if site_admin%}
+   <h2 class="question">Q: Am I a Site Admin?</h2>
+   <div class="answer">Yes! That is why you can edit the FAQ.</div>
 
+   <h2 class="question">Q: How do I add a FAQ?</h2>
+   <div class="answer">You add a FAQ using the form below:
+    <form class="faq" method="post">
+      <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
+      <input type="hidden" name="new_faq" value="new_faq" />
+      <div><input type="text" size="80" name="question" value="{{faq.question}}" placeholder="Question?" />&nbsp;<input type="text" size="3" name="rank" placeholder="Rank" value="{{faq.rank}}" /></div>
+      <div><textarea name="answer" rows="10" cols="80" placeholder="Answer">{{faq.answer}}</textarea><br>
+      <input type="submit" value="Create" /></div>
+     </form>
+   </div>
+  {%endif%}
+  {%for faq in faqs%}
+   <a name="{{faq.question|truncatewords:"7"|slugify}}"></a>
+   {%if site_admin%}
+    <form class="faq" method="post">
+     <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
+     <input type="hidden" name="update_faq" value="{{faq.key}}" />
+     <h2 class="question">Q: <input type="text" size="80" name="question" value="{{faq.question}}" /> Rank: <input type="text" size="3" name="rank" value="{{faq.rank}}" /></h2>
+     <div class="answer"><textarea name="answer" rows="10" cols="80">{{faq.answer}}</textarea><br>
+     <input type="submit" value="Update" /></div>
+    </form>
+   {%else%}
+    <h2 class="question">Q: {{faq.question}}</h2>
+    <div class="answer">{{faq.answer|urlize|linebreaks}}</div>
+   {%endif%}
+
+  {%endfor%}
+   <a name="what-if-my-question-is-not-answered"></a>
+   <h2 class="question">Q: What if my question is not answered above?</h2>
+   <div class="answer">Contact SC2 Laddrs Support using the form below!
+   {% if user %}
+    {% if errormsg %}<div class="error">{% include "tableflipper.html" %} {{errormsg|escape}}</div>{%endif%}
+    <form action="/faq#what-if-my-question-is-not-answered" method="post" enctype="multipart/form-data">
+     <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
+     <!-- {{ category }} -->
+     <div>Category: <select name="category">
+       <option value="MISC" {%ifequal category "MISC"%}selected="selected"{%endifequal%}>Miscellaneous Feedback</option>
+       <option value="FTR" {%ifequal category "FTR"%}selected="selected"{%endifequal%}>Feature Request</option>
+       <option value="REPLAY" {%ifequal category "REPLAY"%}selected="selected"{%endifequal%}>Trouble Uploading Replay</option>
+       <option value="BUG" {%ifequal category "BUG"%}selected="selected"{%endifequal%}>Bug Report</option>
+      </select>
+     </div>
+     <div>From: {{user.email}}</div>
+     <div>To: SC2 Laddrs Support</div>
+     <div>Summary: <input required="required" type="text" name="summary" size="60" value="{{summary}}" placeholder="Just wanted to say SC2 Laddrs is awesome!"/></div>
+     <div>
+      <textarea required="required" name="message" rows="30" cols="100" spellcheck="true"
+       placeholder="Seriously, Man! It's just awesome. So, I guess my question is, how'd you get so awesome? -Love, {{user.nickname}}">{{message}}</textarea></div>
+     <div class="attachment">Attachment: <input type="file" name="attachment"></div>
+     <div><input type="submit" value="Send!"></div>
+    </form>
+   {% else %}<br>
+    But first, you must <a href="{{ auth_url }}">{{ auth_url_linktext }}</a> if you want
+    to contact us. Why do we want you to login first? So our time isn't wasted by
+    <a href="http://www.spamlaws.com/contact-form-spam.html">spammers</a> filling out our contact form.
+   {% endif %}
+  </div>
+ </div>
  {% include "footer.html" %}
+</div>
 </body>
 </html>
 {%endautoescape%}

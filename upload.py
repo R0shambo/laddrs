@@ -62,20 +62,22 @@ class MainPage(webapp.RequestHandler):
           return
         else:
           errormsg = "Umm... not quite sure what has gone wrong."
+      except SC2Match.LoserNotInLadder, e:
+        errormsg = "Loser (%s) is not a member of the ladder." % e.args
+      except SC2Match.MatchAlreadyExists:
+        errormsg = "This match has already been uploaded."
+      except SC2Match.NotReplayOfUploader:
+        errormsg = "You may only upload your own replays."
+      except SC2Match.ReplayIsTooOld:
+        errormsg = "Uploaded replay is too old. Stop living in the past."
+      except SC2Match.ReplayHasNoWinner:
+        errormsg = "Replay has no winner."
       except SC2Match.ReplayParseFailed:
         errormsg = "Unable to parse uploaded replay file."
       except SC2Match.TooManyPlayers, e:
         errormsg = "Only 1v1 replays allowed. Uploaded replay has %d players." % e.args
-      except SC2Match.ReplayHasNoWinner:
-        errormsg = "Replay has no winner."
       except SC2Match.WinnerNotInLadder, e:
         errormsg = "Winner (%s) is not a member of the ladder." % e.args
-      except SC2Match.LoserNotInLadder, e:
-        errormsg = "Loser (%s) is not a member of the ladder." % e.args
-      except SC2Match.NotReplayOfUploader:
-        errormsg = "You may only upload your own replays."
-      except SC2Match.MatchAlreadyExists:
-        errormsg = "This match has already been uploaded."
     else:
       errormsg = "Session timed out."
 

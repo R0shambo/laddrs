@@ -1,11 +1,14 @@
+
 import hashlib
 import logging
 
-from mpyq import MPQArchive
+from datetime import datetime
 
-from sc2replaylib import Sc2replaylibException
-from sc2replaylib.parsers.attributes import AttributesParser
-from sc2replaylib.parsers.details import DetailsParser
+from third_party.mpyq import MPQArchive
+
+from third_party.sc2replaylib import Sc2replaylibException
+from third_party.sc2replaylib.parsers.attributes import AttributesParser
+from third_party.sc2replaylib.parsers.details import DetailsParser
 
 class Replay:
   """
@@ -268,7 +271,6 @@ class Replay:
     :rtype: datetime
     """
 
-    from datetime import datetime
     return datetime.fromtimestamp((self.parsers[self.FILES['details']].parse()[5] - 116444735995904000) / 10**7)
 
   def timestamp_local(self):
@@ -277,7 +279,6 @@ class Replay:
     :rtype: datetime
     """
 
-    from datetime import datetime
     # whoa it really is an offset
     if self.parsers[self.FILES['details']].parse()[6] < 116444735995904000:
       return datetime.fromtimestamp((self.parsers[self.FILES['details']].parse()[5] + self.parsers[self.FILES['details']].parse()[6] - 116444735995904000) / 10**7)

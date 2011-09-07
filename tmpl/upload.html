@@ -7,14 +7,19 @@
  {%include "urchin.html"%}
 </head>
 <body>
- <h1><a href="/">SC2 Laddrs BETA!</a> - <a href="/ladder/{{ladder.get_ladder_key}}">{{ladder.name}}</a> - Upload</h1>
- {%if butter%}<div class="butter">{{butter}}</div>{%endif%}
+<div id="container">
+ <div id="header">
+  <h1><a href="/">SC2 Laddrs BETA!</a> - <a href="/ladder/{{ladder.get_ladder_key}}">{{ladder.name}}</a> - Upload</h1>
+  {%if butter%}<div id="butter">{{butter}}</div>{%endif%}
+ </div>
 
- {%if user_player %}
-  {%include "upload_match.html"%}
- {%endif%}
-
+ <div id="content">
+  {%if user_player %}
+   {%include "upload_match.html"%}
+  {%endif%}
+ </div>
  {% include "footer.html" %}
+</div>
 </body>
 </html>
 {%endautoescape%}

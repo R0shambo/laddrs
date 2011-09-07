@@ -6,6 +6,7 @@ use_library('django', '1.2')
 
 import logging
 import re
+import time
 import urllib
 
 from google.appengine.api import users
@@ -59,8 +60,8 @@ class MainPage(webapp.RequestHandler):
           elif match_key:
             match = db.get(match_key)
             if self.request.get('action') == "delete_match":
-              if ladder.remove_match(match):
-                util.set_butter("Match removed.")
+              ladder.remove_match(match)
+              util.set_butter("Match removed.")
           self.redirect("/manage_ladder/%s" % ladder.get_ladder_key())
           return
       else:
@@ -81,7 +82,10 @@ class MainPage(webapp.RequestHandler):
     })
 
     path = os.path.join(os.path.dirname(__file__), 'tmpl/ladder.html')
+    render_start = time.time()
     self.response.out.write(template.render(path, template_values))
+    logging.info("template rendering took %f seconds",
+        time.time() - render_start)
 
   def post(self, manage, ladder_name):
     ladder_key = str(urllib.unquote(ladder_name))
@@ -103,15 +107,27 @@ class MainPage(webapp.RequestHandler):
     # Bounce if user is not an admin.
     user_player = ladder.get_user_player(user)
     if user_player and user_player.admin and util.csrf_protect(self):
-      try:
-        if ladder.update_ladder(
-            self.request.get('description'),
-            bool(self.request.get('public')),
-            bool(self.request.get('invite_only')),
-            bool(self.request.get('regen_invite_code'))):
-          util.set_butter("Ladder info updated.")
-      except:
-        logging.exception("manage_ladder update failed")
+      if self.request.get('action') == 'update_ladder':
+        try:
+          if ladder.update_ladder(
+              self.request.get('description'),
+              bool(self.request.get('public')),
+              bool(self.request.get('invite_only')),
+              bool(self.request.get('regen_invite_code'))):
+            util.set_butter("Ladder info updated.")
+        except:
+          logging.exception("manage_ladder update failed")
+      elif self.request.get('action') == 'delete_all_the_matches':
+        logging.info("deleting all of %s's matches", ladder.get_ladder_key())
+        ladder.remove_all_the_matches()
+        util.set_butter("All the matches have been deleted.")
+
+    user_player = ladder.get_user_player(user)
+    if user_player and util.csrf_protect(self):
+      if self.request.get('action') == 'update_userplayer':
+        email = user.email() if self.request.get('email') else ''
+        if user_player.set_player_info(self.request.get('nickname'), email):
+          util.set_butter("Player info updated.")
 
     self.redirect("/ladder/%s" % ladder.get_ladder_key())
 
