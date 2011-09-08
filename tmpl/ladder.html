@@ -42,9 +42,9 @@
 
    {%if user_player %}
     <div class="player_info form" style="float:right;max-width:400px;">
-     <input style="float:right" type="button" value="show" onclick='this.value=this.value=="show"?"hide":"show";toggle_visibility("player_info_form");' />
+     <input style="float:right" type="button" value="{%if ladder.public%}show{%else%}{%if user_player.nickname%}show{%else%}hide{%endif%}{%endif%}" onclick='this.value=this.value=="show"?"hide":"show";toggle_visibility("player_info_form");' />
      <b>Your Player Info&nbsp;</b>
-     <form id="player_info_form" method="post" style="display:none;">
+     <form id="player_info_form" method="post" style="display:{%if ladder.public%}none{%else%}{%if user_player.nickname%}none{%else%}block{%endif%}{%endif%};">
       <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
       <div>Members-Only Nickname:
        <input type="text" name="nickname" value="{{user_player.nickname}}" size="30"/>
