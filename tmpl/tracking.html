@@ -1,3 +1,1 @@
-{%if track_pageview%}
- onload="_gaq.push(['_trackPageview', '{{track_pageview}}']);"
-{%endif%}
+onload="{%if track_pageview%}_gaq.push(['_trackPageview', '{{track_pageview}}']);{%endif%}{%if user_player%}laddrs.StartChannel('{{ladder.get_ladder_key|escapejs}}', '{{user.user_id|escapejs}}');{%endif%}"

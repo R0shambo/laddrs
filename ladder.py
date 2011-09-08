@@ -4,6 +4,7 @@ import re
 import time
 import urllib
 
+from google.appengine.api import channel
 from google.appengine.api import users
 from google.appengine.ext import db
 from google.appengine.ext import webapp
@@ -15,7 +16,6 @@ from laddrslib.models import SC2Ladder, SC2Player, SC2Match
 
 class MainPage(webapp.RequestHandler):
   def get(self, manage, ladder_name):
-    ladder_key = str(urllib.unquote(ladder_name))
     ladder = SC2Ladder.get_ladder_by_name(ladder_name)
 
     # Return 404 if ladder could not be found.
@@ -76,7 +76,6 @@ class MainPage(webapp.RequestHandler):
       'manage_ladder': manage_ladder,
       'uploads_accepted': util.get_onetime('uploads_accepted'),
       'uploads_rejected': util.get_onetime('uploads_rejected'),
-
     })
 
     path = os.path.join(os.path.dirname(__file__), 'tmpl/ladder.html')
@@ -86,7 +85,6 @@ class MainPage(webapp.RequestHandler):
         time.time() - render_start)
 
   def post(self, manage, ladder_name):
-    ladder_key = str(urllib.unquote(ladder_name))
     ladder = SC2Ladder.get_ladder_by_name(ladder_name)
 
     # Return 404 if ladder could not be found.

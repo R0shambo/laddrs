@@ -6,6 +6,8 @@
  <link type="text/css" rel="stylesheet" href="/s/main.css" />
  <script src="/s/sorttable.js"></script>
  <script src="/s/misc.js"></script>
+ <script src='/_ah/channel/jsapi'></script>
+ <script src='/s/channel.js'></script>
  {%include "urchin.html"%}
 </head>
 <body {%include "tracking.html"%}>
@@ -41,22 +43,27 @@
   {%else%}
 
    {%if user_player %}
-    <div class="player_info form" style="float:right;max-width:400px;">
-     <input style="float:right" type="button" value="{%if ladder.public%}show{%else%}{%if user_player.nickname%}show{%else%}hide{%endif%}{%endif%}" onclick='this.value=this.value=="show"?"hide":"show";toggle_visibility("player_info_form");' />
-     <b>Your Player Info&nbsp;</b>
-     <form id="player_info_form" method="post" style="display:{%if ladder.public%}none{%else%}{%if user_player.nickname%}none{%else%}block{%endif%}{%endif%};">
-      <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
-      <div>Members-Only Nickname:
-       <input type="text" name="nickname" value="{{user_player.nickname}}" size="30"/>
-       <div class="details">Nickname shown to ladder members only.</div>
-      </div><br>
-      <div>Members-Only Email Address Display:
-       <input type="checkbox" name="email" {%if user_player.email %}checked="checked"{%endif%} />
-       <div class="details">Check to allow ladder members to see your {{user.email}} email address. Displaying your email address will make it easier for other ladder members to schedule matches with you, but you may not want to show it for privacy reasons.</div>
-      </div><br>
-      <input type="hidden" name="action" value="update_userplayer" />
-      <input type="submit" value="Update Info" />
-     </form>
+    <div class="rhs" style="float:right;max-width:500px">
+     <div style="text-align:right">
+      <div class="player_info form" style="text-align:left;max-width:400px">
+       <input style="float:right" type="button" value="{%if ladder.public%}show{%else%}{%if user_player.nickname%}show{%else%}hide{%endif%}{%endif%}" onclick='this.value=this.value=="show"?"hide":"show";toggle_visibility("player_info_form");' />
+       <b>Your Player Info&nbsp;</b>
+       <form id="player_info_form" method="post" style="display:{%if ladder.public%}none{%else%}{%if user_player.nickname%}none{%else%}block{%endif%}{%endif%};">
+        <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
+        <div>Members-Only Nickname:
+         <input type="text" name="nickname" value="{{user_player.nickname}}" size="30"/>
+         <div class="details">Nickname shown to ladder members only.</div>
+        </div><br>
+        <div>Members-Only Email Address Display:
+         <input type="checkbox" name="email" {%if user_player.email %}checked="checked"{%endif%} />
+         <div class="details">Check to allow ladder members to see your {{user.email}} email address. Displaying your email address will make it easier for other ladder members to schedule matches with you, but you may not want to show it for privacy reasons.</div>
+        </div><br>
+        <input type="hidden" name="action" value="update_userplayer" />
+        <input type="submit" value="Update Info" />
+       </form>
+      </div>
+     </div>
+     <div style="position:relative;right:5px;width:500px;height:800px;background-color:white;" id="chatbox">{{token}}</div>
     </div>
    {%endif%}
 

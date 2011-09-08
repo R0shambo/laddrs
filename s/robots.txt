@@ -1,4 +1,5 @@
 User-agent: *
+Disallow: /channel
 Disallow: /create_ladder
 Disallow: /download/
 Disallow: /join_ladder/

@@ -12,6 +12,7 @@ import zipfile
 
 from django.template.defaultfilters import slugify
 
+from google.appengine.api import channel
 from google.appengine.api import memcache
 from google.appengine.api import urlfetch_errors
 from google.appengine.api import users
@@ -35,6 +36,7 @@ MC_P4L="players-for-ladder_v2"
 MC_SC2RP="sc2rank-player_v2"
 MC_MATCHES="matches_v2"
 MC_FAQS="faqs_v2"
+MC_CID="clientid_v1"
 
 MAX_UNFROZEN_MATCHES=500
 
@@ -82,7 +84,7 @@ class SC2Ladder(db.Model):
 
   @classmethod
   def ladder_key(cls, ladder_name):
-    return slugify(ladder_name)
+    return slugify(ladder_name)[:42]
 
   def get_ladder_key(self):
     return self.ladder_key(self.name)
@@ -1089,6 +1091,20 @@ class SC2Match(db.Model):
   def get_rating_period_threshold(cls):
     return cls.calc_rating_period(
         datetime.datetime.utcnow() - datetime.timedelta(days=8))
+
+
+class Channel():
+
+  @classmethod
+  def get_token(cls, ladder, user):
+    client_id = "%s-%s" % (ladder.get_ladder_key(), user.user_id())
+    token = memcache.get(client_id, namespace=MC_CID)
+    if token:
+      return token
+    token = channel.create_channel(client_id)
+    # expire before two hours which is the max age of a token.
+    memcache.set(client_id, token, namespace=MC_CID, time=7000)
+    return token
 
 
 class FaqEntry(db.Model):

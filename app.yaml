@@ -1,5 +1,5 @@
 application: laddrs
-version: 4-0-0
+version: 5-0-0
 runtime: python
 api_version: 1
 
@@ -18,6 +18,10 @@ handlers:
 - url: /robots.txt
   static_files: s/robots.txt
   upload: s/robots.txt
+
+- url: /channel
+  script: channel.py
+  login: required
 
 - url: /create_ladder
   script: create_ladder.py
