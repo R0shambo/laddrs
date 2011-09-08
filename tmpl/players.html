@@ -6,7 +6,7 @@
    {% for player in players|dictsortreversed:"fuzzy_rating" %}<tr {%if player.this_is_you %}class="current_user"{%endif%}>
     <td align="center">{{forloop.counter|ordinal}}</td>
     <td class='player-portrait'>{%include "player_portrait.html"%}</td>
-    {%if user_player%}<td>{%if player.email%}<a href="mailto:{{player.email}}">{%endif%}{{player.nickname}}{%if player.email%}</a>{%endif%}</td>{%endif%}
+    {%if user_player%}<td>{%if player.email%}<a href="mailto:{{player.email}}">{%endif%}{%if player.nickname%}{{player.nickname}}{%else%}{{player.email}}{%endif%}{%if player.email%}</a>{%endif%}</td>{%endif%}
     <td>{{player.fuzzy_rating|floatformat:0}}</td>
     <td>{{player.wins}}</td>
     <td>{{player.losses}}</td>
@@ -33,7 +33,7 @@
   <table class="sortable"><tr><th>Player</th>{%if user_player%}<th>Nickname</th>{%endif%}<th>Joined</th>{%if user_player and not user_player.admin and not user_player.matches_played%}<th>Quit</th>{%endif%}{%if manage_ladder%}<th>Admin</th>{%endif%}</tr>
    {% for player in new_players %}<tr {%if player.this_is_you %}class="current_user"{%endif%}>
     <td class='player-portrait'>{%include "player_portrait.html"%}</td>
-    {%if user_player%}<td>{%if player.email%}<a href="mailto:{{player.email}}">{%endif%}{{player.nickname}}{%if player.email%}</a>{%endif%}</td>{%endif%}
+    {%if user_player%}<td>{%if player.email%}<a href="mailto:{{player.email}}">{%endif%}{%if player.nickname%}{{player.nickname}}{%else%}{{player.email}}{%endif%}{%if player.email%}</a>{%endif%}</td>{%endif%}
     <td title="{{player.joined}}"><span class="hidden">{{player.joined|date:"YmdHis"}} </span>{{player.joined|naturalday:"M d Y"|capfirst}}
      {%if user_player and not user_player.admin and not user_player.matches_played%}
       <td>
