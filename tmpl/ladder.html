@@ -2,6 +2,7 @@
 <html>
 <head>
  <title>{{ladder.name}} - SC2 Laddrs!</title>
+ <meta name="description" content="{%if ladder.public or user_player %}{{ladder.description}}{%endif%} This is a {%if ladder.public %}public {%if ladder.invite_only %}invite-only {{ladder.region|upper}} ladder.{%else%}{{ladder.region|upper}} Starcraft 2 ladder.{%endif%}{%else%}private {{ladder.region|upper}} Starcraft 2 ladder.{%endif%}" />
  <link type="text/css" rel="stylesheet" href="/s/main.css" />
  <script src="/s/sorttable.js"></script>
  <script src="/s/misc.js"></script>

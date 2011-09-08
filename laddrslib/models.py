@@ -189,7 +189,7 @@ class SC2Ladder(db.Model):
           parent=self,
           key_name=SC2Player.player_key(player_name, bnet_id),
           name=player_name,
-          nickname=player_name,
+          nickname="",
           bnet_id=bnet_id,
           code=char_code,
           user_id=user.user_id(),
