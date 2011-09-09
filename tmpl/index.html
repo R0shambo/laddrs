@@ -25,7 +25,7 @@
      {% for ladder in user_ladders|dictsort:"name" %}
       <tr>
        <td><a href="/ladder/{{ladder.get_ladder_key|urlencode}}">{{ladder.name}}</a></td>
-       <td align="right">{%if ladder.user_player.matches_played%}{{ladder.user_player.rank|ordinal}}{%else%}Unranked{%endif%}</td>
+       <td align="right">{%if ladder.user_player.matches_played%}<span class="hidden">{{ladder.user_player.rank|stringformat:"03d"}} </span>{{ladder.user_player.rank|ordinal}}{%else%}Unranked{%endif%}</td>
        <td align="right">{{ladder.user_player.wins}}</td>
        <td align="right">{{ladder.user_player.losses}}</td>
        <td align="right">{{ ladder.players }}</td>
@@ -45,7 +45,7 @@
    {% if public_ladders %}
    <table class="sortable">
     <tr><th>Ladder</th><th>Matches</th><th>Players</th><th>Region</th><th>Description</th></tr>
-    {% for ladder in public_ladders|dictsort:"matches_played" %}
+    {% for ladder in public_ladders|dictsortreversed:"matches_played" %}
      <tr>
       <td><a href="/ladder/{{ladder.get_ladder_key|urlencode}}">{{ ladder.name }}</a></td>
       <td align="right">{{ ladder.matches_played }}</td>

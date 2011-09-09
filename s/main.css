@@ -13,6 +13,10 @@ div#container {
   margin:0 auto;
 }
 
+div#header {
+  text-shadow: 0 0 2px #888;
+}
+
 div#content {
   padding-bottom: 8em;
 }
@@ -36,14 +40,23 @@ div#butter {
   box-shadow: 0 0 8px #888;
   opacity: 0.9;
 }
-
-div#chat-container {
-  opacity: 0.9;
+#chat-container:hover {
+  opacity: 0.95;
+  transition: all 0.25s ease-out;
+  -moz-transition: all 0.25s ease-out; /* Firefox 4 */
+  -webkit-transition: all 0.25s ease-out; /* Safari and Chrome */
+  -o-transition: all 0.25s ease-out; /* Opera */
+}
+#chat-container {
+  opacity: 0.8;
   padding: 0;
+  border-left: 1px solid darkblue;
+  border-right: 1px solid darkblue;
   min-width: 250px;
   max-width: 33%;
   min-height: 15px;
-  max-height: 66%;
+  max-height: 100%;
+  overflow: auto;
   position: fixed;
   bottom: 0;
   right: 5%;
@@ -51,8 +64,12 @@ div#chat-container {
   box-shadow: 0 0 8px #888;
   border-top-left-radius: 10px;
   border-top-right-radius: 10px;
+  transition: all 1s ease-out;
+  -moz-transition: all 1s ease-out; /* Firefox 4 */
+  -webkit-transition: all 1s ease-out; /* Safari and Chrome */
+  -o-transition: all 1s ease-out; /* Opera */
 }
-div#chat-header {
+#chat-header {
   background-color: darkblue;
   color: white;
   font-size: 70%;
@@ -63,25 +80,47 @@ div#chat-header {
   text-align: center;
   border-top-left-radius: 10px;
   border-top-right-radius: 10px;
+  transition: all 1s ease-out;
+  -moz-transition: all 1s ease-out; /* Firefox 4 */
+  -webkit-transition: all 1s ease-out; /* Safari and Chrome */
+  -o-transition: all 1s ease-out; /* Opera */
 }
-div#chat-header a {
+#chat-header.throb {
+  background-color: darkred;
+  transition: all 1s ease-in;
+  -moz-transition: all 1s ease-in; /* Firefox 4 */
+  -webkit-transition: all 1s ease-in; /* Safari and Chrome */
+  -o-transition: all 1s ease-in; /* Opera */
+}
+#chat-header a {
   color: white;
   text-decoration: none;
 }
-div#chatbox {
+
+#chatbox {
   padding: 4px;
   background-color: white;
-  overflow-y: auto;
+  overflow: auto;
+  max-height: 400px;
   display: none;
 }
+
+#chatbox div.system {
+  text-align: center;
+  font-size: 80%;
+  color: #888;
+  font-style: italic;
+}
+
 form#sendchatbox {
   border: 0;
   margin: 0;
   padding: 0;
   width: 100%;
-  display: none;
   box-shadow: none;
   border-radius: 0;
+  bottom: 0;
+  display: none;
 }
 form#sendchatbox table {
   width: 100%;
@@ -127,6 +166,10 @@ h1 a:hover {
   text-decoration: underline;
 }
 
+h2, h3 {
+  text-shadow: 0 0 2px #888;
+}
+
 table.borderless, table.player-portrait, td.player-portrait table.player-portrait td {
   border: 0;
   border-spacing: 0;
@@ -154,6 +197,8 @@ table.sortable {
   margin: 5px;
   border-top-left-radius: 20px;
   border-top-right-radius: 20px;
+  border-bottom-left-radius: 5px;
+  border-bottom-right-radius: 5px;
   border-spacing: 0;
   box-shadow: 0 0 5px #888;
 }
@@ -166,6 +211,7 @@ table.sortable thead {
 table.sortable th {
   padding: 5px 5px;
   background-color: #000;
+  cursor: pointer;
 }
 
 table.sortable th:first-child {
@@ -175,6 +221,13 @@ table.sortable th:first-child {
 table.sortable th:last-child {
   border-top-right-radius: 19px;
   padding-right: 10px;
+}
+
+table.sortable > tbody > tr:last-child td:first-child {
+  border-bottom-left-radius: 3px;
+}
+table.sortable > tbody > tr:last-child td:last-child {
+  border-bottom-right-radius: 3px;
 }
 
 table.sortable td {
@@ -269,6 +322,10 @@ ol {
   -moz-transition: all 0s; /* Firefox 4 */
   -webkit-transition: all 0s; /* Safari and Chrome */
   -o-transition: all 0s; /* Opera */
+}
+
+.description {
+  text-shadow: 0 0 2px #aaa;
 }
 
 .description, .details {

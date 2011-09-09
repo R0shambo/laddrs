@@ -15,7 +15,7 @@ from laddrslib import util
 from laddrslib.models import SC2Ladder, SC2Player, SC2Match, Channel
 
 class MainPage(webapp.RequestHandler):
-  def get(self):
+  def get(self, ladder_name, action):
     if users.is_current_user_admin():
       template_values = util.add_user_tmplvars(self, {
       })
@@ -25,8 +25,7 @@ class MainPage(webapp.RequestHandler):
     else:
       self.redirect(users.create_login_url("/"))
 
-  def post(self):
-    ladder_name = self.request.get('ladder')
+  def post(self, ladder_name, action):
     if not ladder_name:
       self.error(404)
       self.response.out.write("<h1>Channel Not Found</h1>")
@@ -54,16 +53,33 @@ class MainPage(webapp.RequestHandler):
       self.response.out.write("<h1>Channel Not Found</h1>")
       return
 
-    action = self.request.get('action')
-    if action == 'get_token':
+    if action == 'get-token':
       self.response.out.write(Channel.get_token(ladder, user))
+      return
+    if action == 'get-chat-history':
+      logging.info(self.request.get('last_chat_msg'))
+      return
+    if action == 'send-chat':
+      logging.info(self.request.get('m'))
       return
 
     self.response.out.write("NOK")
 
 
+class ChannelConnected(webapp.RequestHandler):
+  def post(self):
+    client_id = self.request.get('from')
+
+
+class ChannelDisconnected(webapp.RequestHandler):
+  def post(self):
+    client_id = self.request.get('from')
+
+
 application = webapp.WSGIApplication([
-  ('/channel', MainPage),
+  ('/channel/([^/]+)/([^/]+)', MainPage),
+  ('/_ah/channel/connected/', ChannelConnected),
+  ('/_ah/channel/disconnected/', ChannelDisconnected),
 ], debug=True)
 
 

@@ -1,7 +1,7 @@
-<div id="chat-container">
+<div id="chat-container" onmouseover="laddrs.StopThrobbing();">
  <a href="javascript:toggleChatBox();"><div id="chat-header">Ladder Chat</div></a>
  <div id="chatbox"></div>
- <form id="sendchatbox">
-  <table><tr><td width="100%"><input type="text" name="chatmsg"/></td><td><input type="submit" value="Send" /></td></tr></table>
+ <form id="sendchatbox" onsubmit="laddrs.SendChatMsg(this);return false;" onerror="return false;" >
+   <table><tr><td width="100%"><input type="text" id="sendchatmsg" name="sendchatmsg"/></td><td><input type="submit" value="Send" /></td></tr></table>
  </form>
 </div>

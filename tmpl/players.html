@@ -4,7 +4,7 @@
   <h2>Players</h2>
   <table class="sortable"><tr><th>Rank</th><th>Player</th>{%if user_player%}<th>Nickname</th>{%endif%}<th>Rating</th><th>Wins</th><th>Losses</th><th>Last Played</th>{%if manage_ladder%}<th>Admin</th>{%endif%}</tr>
    {% for player in players|dictsortreversed:"fuzzy_rating" %}<tr {%if player.this_is_you %}class="current_user"{%endif%}>
-    <td align="center">{{forloop.counter|ordinal}}</td>
+    <td align="center"><span class="hidden">{{forloop.counter|stringformat:"03d"}} </span>{{forloop.counter|ordinal}}</td>
     <td class='player-portrait'>{%include "player_portrait.html"%}</td>
     {%if user_player%}<td>{%if player.email%}<a href="mailto:{{player.email}}">{%endif%}{%if player.nickname%}{{player.nickname}}{%else%}{{player.email}}{%endif%}{%if player.email%}</a>{%endif%}</td>{%endif%}
     <td class="ra">{{player.fuzzy_rating|floatformat:0}}</td>

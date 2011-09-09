@@ -6,10 +6,12 @@ api_version: 1
 builtins:
 - appstats: on
 
+inbound_services:
+- channel_presence
+
 handlers:
 - url: /s
   static_dir: s
-  expiration: "1d"
 
 - url: /favicon.ico
   static_files: s/sc2replay-icon.png
@@ -19,7 +21,13 @@ handlers:
   static_files: s/robots.txt
   upload: s/robots.txt
 
-- url: /channel
+- url: /_ah/channel/connected/
+  script: channel.py
+
+- url: /_ah/channel/disconnected/
+  script: channel.py
+
+- url: /channel/.*
   script: channel.py
   login: required
 
