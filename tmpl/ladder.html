@@ -11,12 +11,14 @@
  {%include "urchin.html"%}
 </head>
 <body {%include "tracking.html"%}>
+ {%if butter%}<div id="butter">{{butter}}</div>{%endif%}
+ {%if user_player%}{%include "chatbox.html"%}{%endif%}
+
 <div id="container">
 
  <div id="header">
   <h1><a href="/">SC2 Laddrs BETA!</a> - {{ladder.name}} Ladder <g:plusone></g:plusone>
   </h1>
- {%if butter%}<div id="butter">{{butter}}</div>{%endif%}
  </div>
 
  <div id="content">
@@ -43,7 +45,7 @@
   {%else%}
 
    {%if user_player %}
-    <div class="rhs" style="float:right;max-width:500px">
+    <div class="rhs" style="float:right;min-width:500px">
      <div style="text-align:right">
       <div class="player_info form" style="text-align:left;max-width:400px">
        <input style="float:right" type="button" value="{%if ladder.public%}show{%else%}{%if user_player.nickname%}show{%else%}hide{%endif%}{%endif%}" onclick='this.value=this.value=="show"?"hide":"show";toggle_visibility("player_info_form");' />
@@ -63,7 +65,6 @@
        </form>
       </div>
      </div>
-     <div style="position:relative;right:5px;width:500px;height:800px;background-color:white;" id="chatbox">{{token}}</div>
     </div>
    {%endif%}
 

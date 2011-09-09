@@ -66,7 +66,7 @@ class MainPage(webapp.RequestHandler):
       except SC2Player.CharCodeMissing:
         errormsg = "Your Battle.net Character Code is required so other members of the ladder can find you. It will only be shown to members of the ladder."
       except SC2Player.InvalidCharCode:
-        errormsg = "Character Code must be a three-digit number."
+        errormsg = "Character Code must be a three or four digit number."
       except SC2Player.BNetIdMissing:
         errormsg = "Your Battle.net ID is required to verify replay uploads."
       except SC2Player.InvalidBNetId:

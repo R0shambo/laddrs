@@ -7,9 +7,9 @@
     <td align="center">{{forloop.counter|ordinal}}</td>
     <td class='player-portrait'>{%include "player_portrait.html"%}</td>
     {%if user_player%}<td>{%if player.email%}<a href="mailto:{{player.email}}">{%endif%}{%if player.nickname%}{{player.nickname}}{%else%}{{player.email}}{%endif%}{%if player.email%}</a>{%endif%}</td>{%endif%}
-    <td>{{player.fuzzy_rating|floatformat:0}}</td>
-    <td>{{player.wins}}</td>
-    <td>{{player.losses}}</td>
+    <td class="ra">{{player.fuzzy_rating|floatformat:0}}</td>
+    <td class="ra">{{player.wins}}</td>
+    <td class="ra">{{player.losses}}</td>
     <td title="{{player.last_played}}"><span class="hidden">{{player.last_played|date:"YmdHis"}} </span>{{player.last_played|naturalday:"M d Y"|capfirst}}</td>
     {%if manage_ladder%}
      <td align="center">

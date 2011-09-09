@@ -1,1 +1,1 @@
-onload="{%if track_pageview%}_gaq.push(['_trackPageview', '{{track_pageview}}']);{%endif%}{%if user_player%}laddrs.StartChannel('{{ladder.get_ladder_key|escapejs}}', '{{user.user_id|escapejs}}');{%endif%}"
+onload="{%if track_pageview%}_gaq.push(['_trackPageview', '{{track_pageview}}']);{%endif%}{%if user_player%}laddrs.StartChannel('{{ladder.get_ladder_key|escapejs}}', '{{user.user_id|escapejs}}');{%endif%}{%if butter%}setTimeout('clearButterBar();', 5000);{%endif%}"

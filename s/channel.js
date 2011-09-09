@@ -39,10 +39,31 @@ laddrs.GetTokenAndOpenChannel = function() {
 }
 
 laddrs.OpenChannel = function() {
+  var channel = new goog.appengine.Channel(laddrs.token);
+  var handler = {
+    'onopen': laddrs.ChannelOpened,
+    'onmessage': laddrs.ChannelMessaged,
+    'onerror': laddrs.ChannelErrored,
+    'onclose': laddrs.ChannelClosed,
+  };
+  var socket = channel.open(handler);
+
   document.getElementById("chatbox").innerHTML=laddrs.token;
+  toggleChatBox('block');
 }
 
-
+laddrs.ChannelOpened = function() {
+  document.getElementById("chatbox").innerHTML="Channel Opened!";
+}
+laddrs.ChannelErrored = function() {
+  document.getElementById("chatbox").innerHTML="Channel Error!";
+}
+laddrs.ChannelMessaged = function() {
+  document.getElementById("chatbox").innerHTML="Channel Messaged!";
+}
+laddrs.ChannelClosed = function() {
+  document.getElementById("chatbox").innerHTML="Channel Closed!";
+}
 
 /*
 

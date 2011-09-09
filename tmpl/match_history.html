@@ -12,7 +12,7 @@
     <td class='player-portrait'>{%for player in match.winners%}{%include "player_portrait.html"%}{%endfor%}</td>
     <td class='player-portrait'>{%for player in match.losers%}{%include "player_portrait.html"%}{%endfor%}</td>
     <td><span class="hidden">{{match.mapname|lower}} </span>{{match.mapname}}</td>
-    <td class="duration">{{match.duration}}</td>
+    <td class="ra">{{match.duration}}</td>
     <td class='player-portrait'><a onclick="_gaq.push(['_trackPageview', '/download/{{ladder.get_ladder_key|urlencode}}/{{match.get_match_key|urlencode}}/{{match.name|slugify}}.SC2Replay']);" href="/download/{{ladder.get_ladder_key|urlencode}}/{{match.get_match_key|urlencode}}/{{match.name|slugify}}.SC2Replay" title="Uploaded {{match.uploaded|naturalday:"M d Y"}} by {{match.uploader.name}} - v{{match.version}}"><img alt="Download Replay" src="/s/sc2replay-icon.png" height="45"/></a></td>
     {%if manage_ladder%}
      <td align="center">

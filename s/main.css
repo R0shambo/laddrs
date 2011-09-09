@@ -14,29 +14,92 @@ div#container {
 }
 
 div#content {
-  padding-bottom: 7em;
+  padding-bottom: 8em;
 }
 
 div#footer {
   position: absolute;
-  bottom: 0;
+  bottom: 10px;
   font-size: 60%;
   width: 100%;
 }
 
 div#butter {
   background-color: #ffd;
-  margin: 1em;
-  padding: 5px;
+  padding: 5px 10px;
+  position: fixed;
+  top: 0;
+  left: 40%;
+  z-index: 1000;
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+  box-shadow: 0 0 8px #888;
+  opacity: 0.9;
 }
 
-
-a.a-button {
-  appearance:button;
-  -moz-appearance:button;
-  -webkit-appearance:button;
-  padding: 2px 6px 3px 6px;
+div#chat-container {
+  opacity: 0.9;
+  padding: 0;
+  min-width: 250px;
+  max-width: 33%;
+  min-height: 15px;
+  max-height: 66%;
+  position: fixed;
+  bottom: 0;
+  right: 5%;
+  z-index: 999;
+  box-shadow: 0 0 8px #888;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+}
+div#chat-header {
+  background-color: darkblue;
+  color: white;
+  font-size: 70%;
+  padding-left: 20px;
+  padding-right: 20px;
+  min-height: 15px;
+  font-weight: bold;
+  text-align: center;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+}
+div#chat-header a {
+  color: white;
   text-decoration: none;
+}
+div#chatbox {
+  padding: 4px;
+  background-color: white;
+  overflow-y: auto;
+  display: none;
+}
+form#sendchatbox {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  display: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+form#sendchatbox table {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+form#sendchatbox td {
+  border: 0;
+  padding: 0 5px;
+  margin: 0;
+}
+form#sendchatbox input[type="text"] {
+  width: 100%;
+}
+
+a {
+  color: #008;
 }
 
 div.answer {
@@ -64,13 +127,7 @@ h1 a:hover {
   text-decoration: underline;
 }
 
-table {
-  background-color: #fff;
-  border: 2px outset;
-  margin: 5px;
-}
-
-table.borderless, table.player-portrait, table.player-portrait td {
+table.borderless, table.player-portrait, td.player-portrait table.player-portrait td {
   border: 0;
   border-spacing: 0;
   background-color: inherit;
@@ -83,18 +140,48 @@ table.player-portrait {
 }
 
 td.player-portrait {
-  padding: 0 0 0 0;
+  padding: 0 !important;
   border-spacing: 0;
 }
 
-td.duration {
+td.ra {
   text-align: right;
 }
 
-table th, table td {
-  border: 2px inset;
+table.sortable {
+  background-color: #000;
+  border: 2px solid #000;
+  margin: 5px;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  border-spacing: 0;
+  box-shadow: 0 0 5px #888;
+}
+
+table.sortable thead {
+  background-color: #000;
+  color: white;
+}
+
+table.sortable th {
+  padding: 5px 5px;
+  background-color: #000;
+}
+
+table.sortable th:first-child {
+  border-top-left-radius: 19px;
+  padding-left: 10px;
+}
+table.sortable th:last-child {
+  border-top-right-radius: 19px;
+  padding-right: 10px;
+}
+
+table.sortable td {
   padding: 2px 5px 2px 5px;
   vertical-align: middle;
+  background-color: white;
+  border: 1px solid #efefef;
 }
 
 table th {
@@ -102,10 +189,12 @@ table th {
 }
 
 form, div.contents, div.form {
-  border: 3px outset;
+  border: 2px solid #000;
+  border-radius: 5px;
+  box-shadow: 0 0 5px #888;
   background-color: #fff;
   margin: 5px;
-  padding: 5px;
+  padding: 10px;
   display: inline-block;
 }
 
@@ -113,6 +202,7 @@ div.form form, form.faq {
   border: 0;
   background-color: inherit;
   display: block;
+  box-shadow: none;
 }
 
 div.player_info form, form.faq {
@@ -138,7 +228,7 @@ ol {
 
 .current_user * {
   font-weight: bold;
-  background-color: #eef;
+  background-color: #eef !important;
 }
 
 .delete-button {
@@ -201,6 +291,7 @@ ol {
   background-color: #fdd;
   margin: 1em;
   padding: 5px;
+  border-radius: 5px;
 }
 
 .hidden {
@@ -223,10 +314,10 @@ ol {
 
 .user_loss * {
   font-weight: bold;
-  background-color: #fee;
+  background-color: #fee !important;
 }
 
 .user_win * {
   font-weight: bold;
-  background-color: #dfd;
+  background-color: #dfd !important;
 }
