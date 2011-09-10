@@ -13,6 +13,7 @@ laddrs.color_options = [
   '#00c', '#90c', '#c30', '#330', '#066',
   '#00f', '#c39', '#933', '#663', '#099',
 ];
+laddrs.reconnect_delay=1000;
 
 laddrs.pickColor = function() {
   return laddrs.color_options[laddrs.colors_picked++ % laddrs.color_options.length]
@@ -203,12 +204,13 @@ laddrs.ChannelClosed = function() {
   var newdiv = document.createElement("div");
   var now = new Date();
   newdiv.className = "system";
-  newdiv.appendChild(document.createTextNode("Chat disconnected."));
+  newdiv.appendChild(document.createTextNode("Chat disconnected. Reconnecting..."));
   newdiv.title = now.toLocaleDateString() + " " + now.toLocaleTimeString();
   cb = document.getElementById("chatbox")
   cb.appendChild(newdiv);
   cb.scrollTop = cb.scrollHeight;
-  laddrs.GetTokenAndOpenChannel();
+  setTimeout(laddrs.GetTokenAndOpenChannel(), laddrs.reconnect_delay);
+  laddrs.reconnect_delay *= 10;
 }
 
 /*
