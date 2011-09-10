@@ -12,7 +12,7 @@ from google.appengine.ext.webapp import template
 from google.appengine.ext.webapp.util import run_wsgi_app
 
 from laddrslib import util
-from laddrslib.models import SC2Ladder, SC2Player, SC2Match, Channel
+from laddrslib.models import SC2Ladder, SC2Player, SC2Match, ChatChannel
 
 class MainPage(webapp.RequestHandler):
   def get(self, ladder_name, action):
@@ -54,26 +54,24 @@ class MainPage(webapp.RequestHandler):
       return
 
     if action == 'get-token':
-      self.response.out.write(Channel.get_token(ladder, user))
-      return
-    if action == 'get-chat-history':
-      logging.info(self.request.get('last_chat_msg'))
-      return
-    if action == 'send-chat':
-      logging.info(self.request.get('m'))
-      return
-
-    self.response.out.write("NOK")
+      self.response.out.write(ChatChannel.get_token(ladder, user))
+    elif action == 'get-chat-history':
+      self.response.out.write(ChatChannel.get_chat_history(ladder,
+          self.request.get('last_chat_msg')))
+    elif action == 'send-chat':
+      self.response.out.write(ChatChannel.send_chat(ladder, user_player, self.request.get('m')))
+    else:
+      self.response.out.write("NOK")
 
 
 class ChannelConnected(webapp.RequestHandler):
   def post(self):
-    client_id = self.request.get('from')
+    ChatChannel.client_connected(self.request.get('from'))
 
 
 class ChannelDisconnected(webapp.RequestHandler):
   def post(self):
-    client_id = self.request.get('from')
+    ChatChannel.client_disconnected(self.request.get('from'))
 
 
 application = webapp.WSGIApplication([

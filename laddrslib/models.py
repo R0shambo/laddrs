@@ -10,7 +10,8 @@ import StringIO
 import time
 import zipfile
 
-from django.template.defaultfilters import slugify
+from django.template.defaultfilters import slugify, force_escape, urlize
+from django.utils import simplejson
 
 from google.appengine.api import channel
 from google.appengine.api import memcache
@@ -37,6 +38,8 @@ MC_SC2RP="sc2rank-player_v2"
 MC_MATCHES="matches_v2"
 MC_FAQS="faqs_v2"
 MC_CID="clientid_v1"
+MC_CHANNELS="channels_v1"
+MC_CHATS="chats_v1"
 
 MAX_UNFROZEN_MATCHES=500
 
@@ -50,6 +53,8 @@ REGION_RE = re.compile("^(us|eu|kr|tw|sea|ru|la)$")
 
 sc2ranks_api = Sc2Ranks("laddrs.appspot.com")
 sc2ranks_throttle = time.time()
+
+mc = memcache.Client()
 
 
 class SC2Ladder(db.Model):
@@ -134,9 +139,9 @@ class SC2Ladder(db.Model):
       player = ladder.add_player(
           player_name, bnet_id, char_code, user, admin=True)
 
-      memcache.delete(user.user_id(), namespace=MC_L4U)
+      mc.delete(user.user_id(), namespace=MC_L4U)
       if public:
-        memcache.delete(MC_PL)
+        mc.delete(MC_PL)
 
       return ladder
 
@@ -157,8 +162,8 @@ class SC2Ladder(db.Model):
 
       self.put()
 
-      memcache.delete(users.get_current_user().user_id(), namespace=MC_L4U)
-      memcache.delete(MC_PL)
+      mc.delete(users.get_current_user().user_id(), namespace=MC_L4U)
+      mc.delete(MC_PL)
       return self
 
   def add_player(self, player_name, bnet_id, char_code, user, admin=False):
@@ -204,10 +209,10 @@ class SC2Ladder(db.Model):
       player.put()
       self.players = self.players + 1
       self.put()
-      memcache.delete(user.user_id(), namespace=MC_L4U)
-      memcache.delete(self.get_ladder_key(), namespace=MC_P4L)
+      mc.delete(user.user_id(), namespace=MC_L4U)
+      mc.delete(self.get_ladder_key(), namespace=MC_P4L)
       if self.public:
-        memcache.delete(MC_PL)
+        mc.delete(MC_PL)
       return player
 
   def remove_player(self, player):
@@ -228,10 +233,10 @@ class SC2Ladder(db.Model):
         self.players = self.players - 1
         self.put()
 
-        memcache.delete(player.user_id, namespace=MC_L4U)
-        memcache.delete(self.get_ladder_key(), namespace=MC_P4L)
+        mc.delete(player.user_id, namespace=MC_L4U)
+        mc.delete(self.get_ladder_key(), namespace=MC_P4L)
         if self.public:
-          memcache.delete(MC_PL)
+          mc.delete(MC_PL)
         return True
       # nothing deleted
       return False
@@ -491,13 +496,13 @@ class SC2Ladder(db.Model):
     if not db.is_in_transaction():
       (accepted, rejected, players, frozened_matches) = db.run_in_transaction(
           _make_transaction, self.add_matches, user_player, replays, force)
-      memcache.delete_multi(
+      mc.delete_multi(
           [m.key().name() for m in frozened_matches], namespace=MC_MATCHES)
-      memcache.delete_multi([p.user_id for p in players], namespace=MC_L4U)
-      memcache.delete(self.get_ladder_key(), namespace=MC_P4L)
-      memcache.delete(self.get_ladder_key(), namespace=MC_M4L)
+      mc.delete_multi([p.user_id for p in players], namespace=MC_L4U)
+      mc.delete(self.get_ladder_key(), namespace=MC_P4L)
+      mc.delete(self.get_ladder_key(), namespace=MC_M4L)
       if self.public:
-        memcache.delete(MC_PL)
+        mc.delete(MC_PL)
       return (accepted, rejected)
 
     else:
@@ -590,12 +595,12 @@ class SC2Ladder(db.Model):
     if not db.is_in_transaction():
       players = db.run_in_transaction(_make_transaction,
           self.remove_match, match)
-      memcache.delete_multi([p.user_id for p in players], namespace=MC_L4U)
-      memcache.delete(match.key().name(), namespace=MC_MATCHES)
-      memcache.delete(self.get_ladder_key(), namespace=MC_P4L)
-      memcache.delete(self.get_ladder_key(), namespace=MC_M4L)
+      mc.delete_multi([p.user_id for p in players], namespace=MC_L4U)
+      mc.delete(match.key().name(), namespace=MC_MATCHES)
+      mc.delete(self.get_ladder_key(), namespace=MC_P4L)
+      mc.delete(self.get_ladder_key(), namespace=MC_M4L)
       if self.public:
-        memcache.delete(MC_PL)
+        mc.delete(MC_PL)
     else:
       # refetch match as part of transaction
       match = SC2Match.get(match.key())
@@ -635,13 +640,13 @@ class SC2Ladder(db.Model):
     if not db.is_in_transaction():
       (match_keys, players) = db.run_in_transaction(_make_transaction,
           self.remove_all_the_matches)
-      memcache.delete_multi(
+      mc.delete_multi(
           [k.name() for k in match_keys], namespace=MC_MATCHES)
-      memcache.delete_multi([p.user_id for p in players], namespace=MC_L4U)
-      memcache.delete(self.get_ladder_key(), namespace=MC_P4L)
-      memcache.delete(self.get_ladder_key(), namespace=MC_M4L)
+      mc.delete_multi([p.user_id for p in players], namespace=MC_L4U)
+      mc.delete(self.get_ladder_key(), namespace=MC_P4L)
+      mc.delete(self.get_ladder_key(), namespace=MC_M4L)
       if self.public:
-        memcache.delete(MC_PL)
+        mc.delete(MC_PL)
     else:
       # get all the matches, then delete them.s
       match_keys = [k for k in SC2Match.all(keys_only=True).ancestor(self)]
@@ -685,7 +690,7 @@ class SC2Ladder(db.Model):
     if not user:
       return []
     # try memcache first
-    ladders = memcache.get(user.user_id(), namespace=MC_L4U)
+    ladders = mc.get(user.user_id(), namespace=MC_L4U)
     # fallback to datastore if necessary
     if not ladders:
       ladders = []
@@ -701,7 +706,7 @@ class SC2Ladder(db.Model):
             ladder.key(), player.glicko_rating).count() + 1
         ladders.append(ladder)
       # try adding to memcache
-      if (not memcache.add(
+      if (not mc.add(
               user.user_id(), ladders, namespace=MC_L4U, time=MC_EXP_MED)
           and retry):
         # if we were unable to add to memcache, it's possible another process
@@ -712,16 +717,16 @@ class SC2Ladder(db.Model):
 
   def get_matches(self, user=None):
 
-    match_keys = memcache.get(self.get_ladder_key(), namespace=MC_M4L)
+    match_keys = mc.get(self.get_ladder_key(), namespace=MC_M4L)
     if not match_keys:
       logging.info("fetching match keys for %s", self.get_ladder_key())
       query = SC2Match.all(keys_only=True).ancestor(self)
       query.order('-match_date_utc')
       match_keys = [k for k in query]
-      memcache.add(
+      mc.add(
           self.get_ladder_key(), match_keys, namespace=MC_M4L, time=MC_EXP_MED)
     #logging.info("%s match keys: %s", self.get_ladder_key(), str(match_keys))
-    matches = memcache.get_multi([k.name() for k in match_keys],
+    matches = mc.get_multi([k.name() for k in match_keys],
         namespace=MC_MATCHES)
     #logging.info("memcached matches: %s", str(matches))
     fetch_keys = []
@@ -758,7 +763,7 @@ class SC2Ladder(db.Model):
           player.portrait = player.get_portrait(self.region)
         matches[key.name()] = match
         recache[key.name()] = match
-      memcache.add_multi(recache, namespace=MC_MATCHES)
+      mc.add_multi(recache, namespace=MC_MATCHES)
 
     ordered_matches = []
     # flag matches owned by the current user.
@@ -805,7 +810,7 @@ class SC2Ladder(db.Model):
         'SC2Ladder', self.get_ladder_key(), 'SC2Player', player_key))
 
   def get_players(self, user=None, fast=False):
-    all_players = memcache.get(self.get_ladder_key(), namespace=MC_P4L)
+    all_players = mc.get(self.get_ladder_key(), namespace=MC_P4L)
     if not all_players:
       logging.info("fetching players for %s", self.get_ladder_key())
       query = SC2Player.gql(
@@ -816,7 +821,7 @@ class SC2Ladder(db.Model):
         if portrait:
           player.portrait = portrait
         all_players.append(player)
-      memcache.add(
+      mc.add(
           self.get_ladder_key(), all_players, namespace=MC_P4L, time=MC_EXP_MED)
     if fast:
       return all_players
@@ -851,7 +856,7 @@ class SC2Ladder(db.Model):
   def get_public_ladders(cls):
     """Queries for all public Ladders."""
     # try memcache first
-    ladders = memcache.get(MC_PL)
+    ladders = mc.get(MC_PL)
     # fallback to datastore if necessary
     if not ladders:
       logging.info("fetching public ladders")
@@ -859,7 +864,7 @@ class SC2Ladder(db.Model):
           "WHERE public = True ORDER BY matches_played DESC, players DESC")
       ladders = q.fetch(100)
       # try adding to memcache, use short expiration as this may change frequently
-      memcache.add(MC_PL, ladders, time=MC_EXP_MED)
+      mc.add(MC_PL, ladders, time=MC_EXP_MED)
     return ladders
 
   def get_match(self, id):
@@ -921,7 +926,7 @@ class SC2Player(db.Model):
     else:
       self.admin = admin
       self.put()
-      memcache.delete(self.get_ladder().get_ladder_key(), namespace=MC_P4L)
+      mc.delete(self.get_ladder().get_ladder_key(), namespace=MC_P4L)
       return True
 
   def set_player_info(self, nickname, email):
@@ -932,7 +937,7 @@ class SC2Player(db.Model):
       self.nickname = nickname
       self.email = email
       self.put()
-      memcache.delete(self.get_ladder().get_ladder_key(), namespace=MC_P4L)
+      mc.delete(self.get_ladder().get_ladder_key(), namespace=MC_P4L)
       return True
 
 
@@ -944,7 +949,7 @@ class SC2Player(db.Model):
     if not self.bnet_id:
       return
     if not hasattr(self, '_base_character') or not self._base_character:
-      self._base_character = memcache.get(self.sc2rank_player_key(region),
+      self._base_character = mc.get(self.sc2rank_player_key(region),
                                           namespace=MC_SC2RP)
     if not self._base_character:
       if sc2ranks_throttle < time.time():
@@ -960,7 +965,7 @@ class SC2Player(db.Model):
         expiry = MC_EXP_LONG
         if hasattr(self._base_character, 'error'):
           expiry = MC_EXP_MED
-        memcache.add(self.sc2rank_player_key(region), self._base_character,
+        mc.add(self.sc2rank_player_key(region), self._base_character,
                      namespace=MC_SC2RP, time=expiry)
       else:
         logging.info("sc2rank api request throttled")
@@ -1093,18 +1098,137 @@ class SC2Match(db.Model):
         datetime.datetime.utcnow() - datetime.timedelta(days=8))
 
 
-class Channel():
+class ChatChannel(db.Model):
+  connected = db.DateTimeProperty(auto_now=True)
+
+  class BadClientId(Exception):
+    pass
+  class FailedDeletingClientConnection(Exception):
+    pass
+  class FailedSendChat(Exception):
+    pass
+  class FailedStoringClientConnection(Exception):
+    pass
 
   @classmethod
   def get_token(cls, ladder, user):
-    client_id = "%s-%s" % (ladder.get_ladder_key(), user.user_id())
-    token = memcache.get(client_id, namespace=MC_CID)
+    client_id = "%s_%s" % (ladder.get_ladder_key(), user.user_id())
+    token = mc.get(client_id, namespace=MC_CID)
     if token:
       return token
     token = channel.create_channel(client_id)
     # expire before two hours which is the max age of a token.
-    memcache.set(client_id, token, namespace=MC_CID, time=7000)
+    mc.set(client_id, token, namespace=MC_CID, time=7100)
     return token
+
+  @classmethod
+  def client_connected(cls, client_id):
+    (ladder_name, user_id) = client_id.split('_')
+    logging.info("chat client %s (%s, %s) connected", client_id, ladder_name, user_id)
+    if not ladder_name or not user_id:
+      raise ChatChannel.BadClientId
+
+    ladder = SC2Ladder.get_ladder_by_name(ladder_name)
+    player = SC2Player.gql("WHERE ANCESTOR IS :1 AND user_id = :2",
+        ladder, user_id).get()
+
+    ch = cls(parent=ladder, key_name=client_id)
+    ch.put()
+
+    for i in xrange(10):
+      channels = mc.gets(ladder_name, namespace=MC_CHANNELS)
+      if not channels:
+        channels = [c.name() for c in ChatChannel.all(keys_only=True).ancestor(ladder_key)]
+        channels.append(ch.key().name())
+        if mc.add(ladder_name, channels, namespace=MC_CHANNELS):
+          cls.send_chat(ladder, player, sysmsg="joined ladder chat.")
+          return
+      else:
+        if not channels.count(ch.key().name()):
+          channels.append(ch.key().name())
+        if mc.cas(ladder_name, channels, namespace=MC_CHANNELS):
+          cls.send_chat(ladder, player, sysmsg="joined ladder chat.")
+          return
+    raise ChatChannel.FailedStoringClientConnection
+
+  @classmethod
+  def client_disconnected(cls, client_id):
+    (ladder_name, user_id) = client_id.split('_')
+    logging.info("chat client %s (%s, %s) disconnected", client_id, ladder_name, user_id)
+    if not ladder_name or not user_id:
+      raise ChatChannel.BadClientId
+
+    ladder = SC2Ladder.get_ladder_by_name(ladder_name)
+    player = SC2Player.gql("WHERE ANCESTOR IS :1 AND user_id = :2",
+        ladder, user_id).get()
+    db.delete(db.Key.from_path('SC2Ladder', ladder_name, str(cls), client_id))
+
+    cls.send_chat(ladder, player, sysmsg="left ladder chat.")
+
+    for i in xrange(10):
+      channels = mc.gets(ladder_name, namespace=MC_CHANNELS)
+      if not channels:
+        return
+      try:
+        channels.remove(client_id)
+        if mc.cas(ladder_name, channels, namespace=MC_CHANNELS):
+          return
+      except:
+        return
+    raise ChatChannel.FailedDeletingClientConnection
+
+  @classmethod
+  def get_chat_history(cls, ladder, last_chat_msg):
+    chat_history = mc.get(ladder.get_ladder_key(), namespace=MC_CHATS)
+    if not chat_history:
+      chat_history = []
+    logging.info("stored chat history: %s", str(chat_history))
+    out = simplejson.dumps(filter(lambda x: x['t'] > int(last_chat_msg), chat_history))
+    logging.info(out)
+    return out
+
+  @classmethod
+  def send_chat(cls, ladder, user_player, msg=None, sysmsg=None):
+    chat = {
+      't': time.time(),
+      'n': user_player.name,
+    }
+
+    if sysmsg:
+      chat['s'] = sysmsg
+    else:
+      chat['m'] = urlize(force_escape(msg[:4096]))
+
+    json_obj = {
+      'chat': [chat],
+    }
+    logging.info("send_chat %s", str(json_obj))
+    for i in xrange(10):
+      chat_history = mc.gets(ladder.get_ladder_key(), namespace=MC_CHATS)
+      if not chat_history:
+        chat_history = []
+        chat_history.append(chat)
+        if mc.add(ladder.get_ladder_key(), chat_history, namespace=MC_CHATS):
+          return cls.publish(ladder, json_obj)
+      else:
+        chat_history.append(chat)
+        if len(chat_history) > 100:
+          chat_history.pop(0)
+        if mc.cas(ladder.get_ladder_key(), chat_history, namespace=MC_CHATS):
+          return cls.publish(ladder, json_obj)
+    raise ChatChannel.FailedSendChat
+
+  @classmethod
+  def publish(cls, ladder, json_obj):
+    json_msg = simplejson.dumps(json_obj)
+    channels = mc.gets(ladder.get_ladder_key(), namespace=MC_CHANNELS)
+    if not channels:
+      channels = [c.name() for c in ChatChannel.all(keys_only=True).ancestor(ladder)]
+      mc.add(ladder.get_ladder_key(), channels, namespace=MC_CHANNELS)
+    for ch in channels:
+      logging.info("sending message to %s: %s", ch, json_msg)
+      channel.send_message(ch, json_msg)
+    return True
 
 
 class FaqEntry(db.Model):
@@ -1115,10 +1239,10 @@ class FaqEntry(db.Model):
 
   @classmethod
   def get_faqs(cls):
-    faqs = memcache.get(MC_FAQS)
+    faqs = mc.get(MC_FAQS)
     if not faqs:
       faqs = [f for f in cls.all().order("rank")]
-      memcache.set(MC_FAQS, faqs)
+      mc.set(MC_FAQS, faqs)
     return faqs
 
   @classmethod
@@ -1129,14 +1253,14 @@ class FaqEntry(db.Model):
       faq.answer = answer
       faq.rank = int(rank)
       faq.put()
-      memcache.delete(MC_FAQS)
+      mc.delete(MC_FAQS)
       return True
 
   @classmethod
   def new_faq(cls, question, answer, rank):
     faq = cls(question=question, answer=answer, rank=int(rank))
     faq.put()
-    memcache.delete(MC_FAQS)
+    mc.delete(MC_FAQS)
     return faq
 
 def _make_transaction(method, *args):

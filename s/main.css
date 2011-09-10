@@ -48,6 +48,7 @@ div#butter {
   -o-transition: all 0.25s ease-out; /* Opera */
 }
 #chat-container {
+  display: none;
   opacity: 0.8;
   padding: 0;
   border-left: 1px solid darkblue;
@@ -110,6 +111,15 @@ div#butter {
   font-size: 80%;
   color: #888;
   font-style: italic;
+}
+
+#chatbox div.message {
+  white-space: pre-line;
+  text-indent: -1em;
+  padding-left: 1em;
+}
+#chatbox div.message span.name {
+  font-weight: bold;
 }
 
 form#sendchatbox {
@@ -235,6 +245,7 @@ table.sortable td {
   vertical-align: middle;
   background-color: white;
   border: 1px solid #efefef;
+  box-sizing: border-box;
 }
 
 table th {

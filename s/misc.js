@@ -15,10 +15,12 @@ function toggleChatBox(force) {
   var sendbox = document.getElementById("sendchatbox");
   if (force) {
     box.style.display = force;
+    box.scrollTop = box.scrollHeight;
     sendbox.style.display = force;
   }
   else if (box.style.display == "none") {
     box.style.display = 'block';
+    box.scrollTop = box.scrollHeight;
     sendbox.style.display = 'block';
   }
   else {
