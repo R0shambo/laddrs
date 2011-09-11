@@ -14,6 +14,7 @@ laddrs.color_options = [
   '#00f', '#c39', '#933', '#663', '#099',
 ];
 laddrs.reconnect_delay=1000;
+laddrs.socket = '';
 
 laddrs.pickColor = function() {
   return laddrs.color_options[laddrs.colors_picked++ % laddrs.color_options.length]
@@ -74,7 +75,8 @@ laddrs.OpenChannel = function() {
     'onerror': laddrs.ChannelErrored,
     'onclose': laddrs.ChannelClosed,
   };
-  var socket = channel.open(handler);
+  laddrs.socket = channel.open(handler);
+  laddrs.socket.onerror = laddrs.ChannelErrored;
 }
 
 laddrs.SendChatMsg = function(el) {
@@ -116,14 +118,14 @@ laddrs.AddChatMessages = function(chat) {
 
     if (c['s']) {
       div.className = "system";
-      div.innerText = c.n + " " + c.s
+      div.innerHTML = c.n + " " + c.s
     }
     else {
       div.className = "message";
       var name = document.createElement("span")
       name.className = "name";
       name.style.color = laddrs.colors[c.n];
-      name.innerText = c.n + ": ";
+      name.innerHTML = c.n + ": ";
       var text = document.createElement("span")
       text.className = "chatmsg";
       text.innerHTML = c.m;

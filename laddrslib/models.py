@@ -1191,11 +1191,11 @@ class ChatChannel(db.Model):
   def send_chat(cls, ladder, user_player, msg=None, sysmsg=None):
     chat = {
       't': time.time(),
-      'n': user_player.name,
+      'n': force_escape(user_player.name),
     }
 
     if sysmsg:
-      chat['s'] = sysmsg
+      chat['s'] = force_escape(sysmsg)
     else:
       chat['m'] = urlize(force_escape(msg[:4096]))
 
