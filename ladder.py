@@ -33,6 +33,13 @@ class MainPage(webapp.RequestHandler):
 
     (players, new_players, user_player) = ladder.get_players(user)
 
+    if self.request.get('quit_ladder'):
+      if user_player and util.csrf_protect(self):
+        if ladder.remove_player(user_player):
+          util.set_butter("You have left %s." % ladder.name)
+      self.redirect(self.request.path)
+      return
+
     manage_ladder = False
     if manage:
       if user_player and user_player.admin:
