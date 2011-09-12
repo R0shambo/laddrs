@@ -1099,6 +1099,7 @@ class SC2Match(db.Model):
 
 
 class ChatChannel(db.Model):
+  player_name = db.StringProperty()
   connected = db.DateTimeProperty(auto_now=True)
 
   class BadClientId(Exception):
@@ -1138,16 +1139,19 @@ class ChatChannel(db.Model):
     for i in xrange(10):
       channels = mc.gets(ladder_name, namespace=MC_CHANNELS)
       if not channels:
-        channels = [c.name() for c in ChatChannel.all(keys_only=True).ancestor(ladder_key)]
-        channels.append(ch.key().name())
+        channels = {}
+        for c in ChatChannel.all().ancestor(ladder):
+          channels[c.key().name()] = c.player_name
+        channels[ch.key().name()] = player.name
         if mc.add(ladder_name, channels, namespace=MC_CHANNELS):
-          cls.send_chat(ladder, player, sysmsg="joined ladder chat.")
+          cls.send_chat(ladder, player, sysmsg="joined ladder chat.", presence=channels)
           return
       else:
-        if not channels.count(ch.key().name()):
-          channels.append(ch.key().name())
+        if ch.key().name() in channels:
+          return
+        channels[ch.key().name()] = player.name
         if mc.cas(ladder_name, channels, namespace=MC_CHANNELS):
-          cls.send_chat(ladder, player, sysmsg="joined ladder chat.")
+          cls.send_chat(ladder, player, sysmsg="joined ladder chat.", presence=channels)
           return
     raise ChatChannel.FailedStoringClientConnection
 
@@ -1163,17 +1167,16 @@ class ChatChannel(db.Model):
         ladder, user_id).get()
     db.delete(db.Key.from_path('SC2Ladder', ladder_name, str(cls), client_id))
 
-    cls.send_chat(ladder, player, sysmsg="left ladder chat.")
-
     for i in xrange(10):
       channels = mc.gets(ladder_name, namespace=MC_CHANNELS)
       if not channels:
         return
       try:
-        channels.remove(client_id)
+        del channels[client_id]
         if mc.cas(ladder_name, channels, namespace=MC_CHANNELS):
+          cls.send_chat(ladder, player, sysmsg="left ladder chat.", presense=channels)
           return
-      except:
+      except KeyError:
         return
     raise ChatChannel.FailedDeletingClientConnection
 
@@ -1188,7 +1191,7 @@ class ChatChannel(db.Model):
     return out
 
   @classmethod
-  def send_chat(cls, ladder, user_player, msg=None, sysmsg=None):
+  def send_chat(cls, ladder, user_player, msg=None, sysmsg=None, presence=None):
     chat = {
       't': time.time(),
       'n': force_escape(user_player.name),
@@ -1202,6 +1205,10 @@ class ChatChannel(db.Model):
     json_obj = {
       'chat': [chat],
     }
+
+    if presence:
+      json_obj['presence'] = sorted(presence.itervalues, key=str.lower)
+
     logging.info("send_chat %s", str(json_obj))
     for i in xrange(10):
       chat_history = mc.gets(ladder.get_ladder_key(), namespace=MC_CHATS)
