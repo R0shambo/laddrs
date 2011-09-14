@@ -29,8 +29,14 @@ class MainPage(webapp.RequestHandler):
     self.response.out.write(template.render(path, template_values))
 
 
+class WarmUp(webapp.RequestHandler):
+  def get(self):
+    self.response.out.write("OK")
+
+
 application = webapp.WSGIApplication([
   ('/', MainPage),
+  ('/_ah/warmup', WarmUp),
 ], debug=True)
 
 

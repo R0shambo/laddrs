@@ -17,6 +17,7 @@ def add_user_tmplvars(handler, tmplvars):
   tmplvars['butter'] = get_butter()
   tmplvars['track_pageview'] = get_track_pageview()
   tmplvars['production'] = in_production()
+  tmplvars['app_version_id'] = os.getenv('CURRENT_VERSION_ID')
   if user:
     tmplvars['auth_url'] = users.create_logout_url(handler.request.uri)
     tmplvars['auth_url_linktext'] = 'Logout %s' % user.nickname()

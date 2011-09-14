@@ -8,6 +8,7 @@ builtins:
 
 inbound_services:
 - channel_presence
+- warmup
 
 handlers:
 - url: /s
@@ -56,6 +57,9 @@ handlers:
 
 - url: /faq
   script: faq.py
+
+- url: /_ah/warmup
+  script: main.py
 
 - url: /
   script: main.py

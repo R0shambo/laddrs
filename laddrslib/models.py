@@ -37,7 +37,7 @@ MC_P4L="players-for-ladder_v2"
 MC_SC2RP="sc2rank-player_v2"
 MC_MATCHES="matches_v2"
 MC_FAQS="faqs_v2"
-MC_CID="clientid_v1"
+MC_CID="clientid_v1_%s" % os.getenv('CURRENT_VERSION_ID')
 MC_CHANNELS="channels_v1"
 MC_CHATS="chats_v1"
 
@@ -1194,8 +1194,9 @@ class ChatChannel(db.Model):
         return
       channels[ch.key().name()] = player.name
       if mc.cas(ladder_name, channels, namespace=MC_CHANNELS, time=7200):
+        # may want to skip client_id if we can figure out the proper timing.
         cls.send_chat(ladder, player, sysmsg="joined ladder chat.",
-            channels=channels, skip=client_id)
+            channels=channels)
         return
       channels = cls.get_channels(ladder)
     raise ChatChannel.FailedStoringClientConnection
@@ -1310,8 +1311,8 @@ class ChatChannel(db.Model):
         else:
           logging.info("sending message to %s: %s", ch, json_msg)
           channel.send_message(ch, json_msg)
-    except NoneType:
-      pass
+    except AttributeError:
+      logging.info("%s channel empty.", ladder.get_ladder_key())
     return True
 
 
