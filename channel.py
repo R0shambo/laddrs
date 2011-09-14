@@ -4,6 +4,8 @@ import re
 import time
 import urllib
 
+from django.utils import simplejson
+
 from google.appengine.api import channel
 from google.appengine.api import users
 from google.appengine.ext import db
@@ -60,6 +62,27 @@ class MainPage(webapp.RequestHandler):
           self.request.get('last_chat_msg')))
     elif action == 'send-chat':
       self.response.out.write(ChatChannel.send_chat(ladder, user_player, self.request.get('m')))
+    elif action == 'get-ladder-data':
+      (players, new_players, user_player) = ladder.get_players(user)
+      matches = None
+      if ladder.matches_played:
+        matches = ladder.get_matches(user)
+      template_values = util.add_user_tmplvars(self, {
+        'ladder': ladder,
+        'user_player': user_player,
+        'players': players,
+        'new_players': new_players,
+        'matches': matches,
+      })
+      path = os.path.join(os.path.dirname(__file__), 'tmpl/players.html')
+      player_data = template.render(path, template_values)
+      path = os.path.join(os.path.dirname(__file__), 'tmpl/match_history.html')
+      match_data = template.render(path, template_values)
+      json_obj = {
+        'players': player_data,
+        'match_history': match_data,
+      }
+      self.response.out.write(simplejson.dumps(json_obj))
     else:
       self.response.out.write("NOK")
 

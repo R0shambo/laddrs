@@ -1,7 +1,13 @@
+{%if not manage_ladder %}
 <div id="chat-container" onmouseover="laddrs.StopThrobbing();">
  <a href="javascript:toggleChatBox();"><div id="chat-header">Ladder Chat</div></a>
  <div id="chatbox"></div>
  <form id="sendchatbox" onsubmit="laddrs.SendChatMsg(this);return false;" onerror="return false;" >
-   <table><tr><td><img id="show-people-button" title="Show/Hide People Pane" src="/s/people.png" width="16" height="16" onclick="laddrs.ToggleChatPeople();" /><td width="100%"><input type="text" id="sendchatmsg" name="sendchatmsg"/></td><td><input type="submit" value="Send" /></td></tr></table>
+   <table><tr><td><a href="javascript:togglePresence();"><img id="show-people-button" title="Show/Hide People Pane" src="/s/people.png" width="16" height="16" /></a><td width="100%"><input type="text" id="sendchatmsg" name="sendchatmsg"/></td><td><input type="submit" value="Send" /></td></tr></table>
  </form>
 </div>
+<div id="presence-container">
+ <a href="javascript:togglePresence();"><div id="presence-header">Online</div></a>
+ <div id="chat-presence"></div>
+</div>
+{%endif%}

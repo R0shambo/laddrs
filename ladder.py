@@ -31,7 +31,10 @@ class MainPage(webapp.RequestHandler):
       self.redirect(users.create_login_url(self.request.uri))
       return
 
-    (players, new_players, user_player) = ladder.get_players(user)
+    (players, new_players, user_player) = ladder.get_players(user) #FIXME
+    #players = []
+    #new_players = []
+    #user_player = ladder.get_user_player(user)
 
     if self.request.get('quit_ladder'):
       if user_player and util.csrf_protect(self):
@@ -62,7 +65,7 @@ class MainPage(webapp.RequestHandler):
           elif match_key:
             match = db.get(match_key)
             if self.request.get('action') == "delete_match":
-              ladder.remove_match(match)
+              ladder.remove_match(match, user_player)
               util.set_butter("Match removed.")
           self.redirect("/manage_ladder/%s" % ladder.get_ladder_key())
           return
@@ -72,6 +75,7 @@ class MainPage(webapp.RequestHandler):
 
     matches = None
     if ladder.matches_played:
+      #pass #FIXME
       matches = ladder.get_matches(user)
 
     template_values = util.add_user_tmplvars(self, {
@@ -107,7 +111,6 @@ class MainPage(webapp.RequestHandler):
       self.redirect(users.create_login_url("/ladder/%s" % ladder.get_ladder_key()))
       return
 
-    # Bounce if user is not an admin.
     user_player = ladder.get_user_player(user)
     if user_player and user_player.admin and util.csrf_protect(self):
       if self.request.get('action') == 'update_ladder':
@@ -122,10 +125,9 @@ class MainPage(webapp.RequestHandler):
           logging.exception("manage_ladder update failed")
       elif self.request.get('action') == 'delete_all_the_matches':
         logging.info("deleting all of %s's matches", ladder.get_ladder_key())
-        ladder.remove_all_the_matches()
+        ladder.remove_all_the_matches(user_player)
         util.set_butter("All the matches have been deleted.")
 
-    user_player = ladder.get_user_player(user)
     if user_player and util.csrf_protect(self):
       if self.request.get('action') == 'update_userplayer':
         email = user.email() if self.request.get('email') else ''

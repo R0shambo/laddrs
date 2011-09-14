@@ -13,7 +13,7 @@ laddrs.color_options = [
   '#00c', '#90c', '#c30', '#330', '#066',
   '#00f', '#c39', '#933', '#663', '#099',
 ];
-laddrs.reconnect_delay=1000;
+laddrs.reconnect_delay=5000;
 laddrs.socket = '';
 
 laddrs.pickColor = function() {
@@ -21,11 +21,7 @@ laddrs.pickColor = function() {
 };
 
 laddrs.XHR = function() {
-  if (window.XMLHttpRequest) {
-    return new XMLHttpRequest();
-  } else if (window.ActiveXObject) {
-    return new ActiveXObject("Microsoft.XMLHTTP");
-  }
+  return new XMLHttpRequest();
 }
 
 laddrs.Action = function(xhr, action, params) {
@@ -59,10 +55,29 @@ laddrs.StartChannel = function(ladder_name, user_id) {
 laddrs.GetTokenAndOpenChannel = function() {
   var xhr = laddrs.XHR();
   xhr.onreadystatechange=function() {
-    if (xhr.readyState==4 && xhr.status==200) {
-      laddrs.token = xhr.responseText;
-      laddrs.OpenChannel();
+    if (xhr.readyState==4) {
+      if (xhr.status==200) {
+        laddrs.token = xhr.responseText;
+        laddrs.OpenChannel();
+      }
+      else {
+        var e = {
+          code: xhr.status,
+          description: "Chat connection failed",
+        }
+        laddrs.ChannelErrored(e);
+      }
     }
+  }
+  if (!laddrs.first_open) {
+    var newdiv = document.createElement("div");
+    var now = new Date();
+    newdiv.className = "system";
+    newdiv.appendChild(document.createTextNode("Reconnecting..."));
+    newdiv.title = now.toLocaleDateString() + " " + now.toLocaleTimeString();
+    cb = document.getElementById("chatbox")
+    cb.appendChild(newdiv);
+    cb.scrollTop = cb.scrollHeight;
   }
   laddrs.Action(xhr, "get-token");
 }
@@ -76,7 +91,7 @@ laddrs.OpenChannel = function() {
     'onclose': laddrs.ChannelClosed,
   };
   laddrs.socket = channel.open(handler);
-  laddrs.socket.onerror = laddrs.ChannelErrored;
+  //laddrs.socket.onerror = laddrs.ChannelErrored;
 }
 
 laddrs.SendChatMsg = function(el) {
@@ -99,6 +114,18 @@ laddrs.SendChatMsg = function(el) {
     laddrs.AddChatMessages(chat);
     */
   }
+}
+
+laddrs.GetLadderUpdate = function() {
+  var xhr = laddrs.XHR();
+  xhr.onreadystatechange=function() {
+    if (xhr.readyState==4 && xhr.status==200) {
+      var msg = {};
+      msg.data = xhr.responseText
+      laddrs.ChannelMessaged(msg)
+    }
+  }
+  laddrs.Action(xhr, "get-ladder-data", null);
 }
 
 laddrs.AddChatMessages = function(chat) {
@@ -143,6 +170,21 @@ laddrs.AddChatMessages = function(chat) {
   }
 }
 
+laddrs.SetPresence = function(presence) {
+  var div = document.getElementById("chat-presence");
+  div.innerHTML = "";
+  for (var i in presence) {
+    var name = presence[i];
+    var player = document.createElement("div")
+    if (!laddrs.colors[name]) {
+      laddrs.colors[name] = laddrs.pickColor();
+    }
+    player.style.color = laddrs.colors[name];
+    player.innerHTML = name;
+    div.appendChild(player);
+  }
+}
+
 laddrs.ThrobChatHeader = function() {
   var ch = document.getElementById("chat-header");
   var bg = ch.className;
@@ -162,25 +204,34 @@ laddrs.StopThrobbing = function() {
 laddrs.ChannelOpened = function() {
   if (laddrs.first_open) {
     document.getElementById("chat-container").style.display = 'block';
-    toggleChatBox('block');
+    toggleChatBox(true);
     laddrs.first_open = false;
   }
-  var newdiv = document.createElement("div");
-  var now = new Date();
-  newdiv.className = "system";
-  newdiv.appendChild(document.createTextNode("Chat connected."));
-  newdiv.title = now.toLocaleDateString() + " " + now.toLocaleTimeString();
-  document.getElementById("chatbox").appendChild(newdiv);
+  else {
+    var newdiv = document.createElement("div");
+    var now = new Date();
+    newdiv.className = "system";
+    newdiv.appendChild(document.createTextNode("Chat reconnected."));
+    newdiv.title = now.toLocaleDateString() + " " + now.toLocaleTimeString();
+    var cb = document.getElementById("chatbox")
+    cb.appendChild(newdiv);
+    cb.scrollTop = cb.scrollHeight;
+  }
+
+  laddrs.reconnect_delay = 5000;
 
   // fetch chat history
-  params = {
+  var params = {
     last_chat_msg: laddrs.last_chat_msg,
   };
   var xhr = laddrs.XHR();
   xhr.onreadystatechange=function() {
     if (xhr.readyState==4 && xhr.status==200) {
-      chat = JSON.parse(xhr.responseText);
-      laddrs.AddChatMessages(chat);
+      var msg = {};
+      msg.data = xhr.responseText
+      laddrs.ChannelMessaged(msg)
+      /*
+      */
     }
   }
   laddrs.Action(xhr, "get-chat-history", params);
@@ -194,41 +245,43 @@ laddrs.ChannelErrored = function(e) {
   cb = document.getElementById("chatbox")
   cb.appendChild(newdiv);
   cb.scrollTop = cb.scrollHeight;
+  laddrs.ChannelClosed();
 }
+
 laddrs.ChannelMessaged = function(m) {
   var msg = JSON.parse(m.data);
   if (msg.chat) {
     laddrs.AddChatMessages(msg.chat);
     laddrs.ThrobChatHeader();
   }
+  if (msg.presence) {
+    laddrs.SetPresence(msg.presence);
+  }
+  if (msg.ladder_updated) {
+    laddrs.GetLadderUpdate();
+  }
+  if (msg.players) {
+    var d = document.getElementById("players");
+    d.innerHTML = msg.players;
+  }
+  if (msg.match_history) {
+    var d = document.getElementById("match_history");
+    d.innerHTML = msg.match_history;
+  }
 }
+
 laddrs.ChannelClosed = function() {
   var newdiv = document.createElement("div");
   var now = new Date();
   newdiv.className = "system";
-  newdiv.appendChild(document.createTextNode("Chat disconnected. Reconnecting..."));
+  newdiv.appendChild(document.createTextNode("Chat disconnected. Will retry in " + laddrs.reconnect_delay / 1000 + " seconds."));
   newdiv.title = now.toLocaleDateString() + " " + now.toLocaleTimeString();
   cb = document.getElementById("chatbox")
   cb.appendChild(newdiv);
   cb.scrollTop = cb.scrollHeight;
-  setTimeout(laddrs.GetTokenAndOpenChannel(), laddrs.reconnect_delay);
-  laddrs.reconnect_delay *= 10;
+  setTimeout('laddrs.GetTokenAndOpenChannel();', laddrs.reconnect_delay);
+  laddrs.reconnect_delay *= 2;
+  if (laddrs.reconnect_delay > 120000) {
+    laddrs.reconnect_delay = 120000;
+  }
 }
-
-/*
-
-
-  var token = '{{ token }}';
-  var channel = new goog.appengine.Channel(token);
-  var handler = {
-    'onopen': onOpened,
-    'onmessage': onMessage,
-    'onerror': function() {},
-    'onclose': function() {}
-  };
-  var socket = channel.open(handler);
-  socket.onopen = onOpened;
-  socket.onmessage = onMessage;
-}
-
-*/

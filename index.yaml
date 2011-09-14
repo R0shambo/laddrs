@@ -10,45 +10,10 @@ indexes:
 # automatically uploaded to the admin console when you next deploy
 # your application using appcfg.py.
 
-- kind: FaqEntry
-  properties:
-  - name: popularity
-    direction: desc
-  - name: orig_rank
-
-- kind: FaqEntry
-  properties:
-  - name: popularity
-    direction: desc
-  - name: orig_rank
-    direction: desc
-
-- kind: Greeting
+- kind: ChatChannel
   ancestor: yes
   properties:
-  - name: date
-    direction: desc
-
-- kind: PT_SC2Ladder
-  properties:
-  - name: public
-  - name: matches_played
-    direction: desc
-
-- kind: PT_SC2Ladder
-  properties:
-  - name: public
-  - name: matches_played
-    direction: desc
-  - name: players
-    direction: desc
-
-- kind: PT_SC2Player
-  ancestor: yes
-  properties:
-  - name: elo_rating
-  - name: joined
-    direction: desc
+  - name: connected
 
 - kind: SC2Ladder
   properties:
@@ -61,47 +26,10 @@ indexes:
 - kind: SC2Match
   ancestor: yes
   properties:
-  - name: frozen
   - name: match_date_utc
-
-- kind: SC2Match
-  ancestor: yes
-  properties:
-  - name: frozen
-  - name: match_date_utc
-    direction: desc
-
-- kind: SC2Match
-  ancestor: yes
-  properties:
-  - name: match_date_utc
-    direction: desc
-
-- kind: SC2Player
-  ancestor: yes
-  properties:
-  - name: elo_rating
-  - name: joined
     direction: desc
 
 - kind: SC2Player
   ancestor: yes
   properties:
   - name: glicko_rating
-
-- kind: SC2Player
-  ancestor: yes
-  properties:
-  - name: rank
-
-- kind: SC2Player
-  ancestor: yes
-  properties:
-  - name: rank
-  - name: joined
-    direction: desc
-
-- kind: SC2Player
-  ancestor: yes
-  properties:
-  - name: rating

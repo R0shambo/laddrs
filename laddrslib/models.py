@@ -168,8 +168,11 @@ class SC2Ladder(db.Model):
 
   def add_player(self, player_name, bnet_id, char_code, user, admin=False):
     if not db.is_in_transaction():
-      return db.run_in_transaction(_make_transaction, self.add_player,
+      newplayer = db.run_in_transaction(_make_transaction, self.add_player,
           player_name, bnet_id, char_code, user, admin)
+      ChatChannel.send_chat(self, newplayer, ladder_updated=True,
+            sysmsg="has joined the ladder!")
+      return newplayer
     else:
       # cleanup
       player_name = player_name.strip()
@@ -217,8 +220,12 @@ class SC2Ladder(db.Model):
 
   def remove_player(self, player):
     if not db.is_in_transaction():
-      return db.run_in_transaction(_make_transaction, self.remove_player,
-          player)
+      if db.run_in_transaction(_make_transaction, self.remove_player,
+          player):
+        ChatChannel.send_chat(self, player, ladder_updated=True,
+            sysmsg="quit the ladder.")
+        return True
+      return False
     else:
       # refetch player as part of transaction
       player = self.get_player(player.name, player.bnet_id)
@@ -494,7 +501,7 @@ class SC2Ladder(db.Model):
 
   def add_matches(self, user_player, replays, force=False):
     if not db.is_in_transaction():
-      (accepted, rejected, players, frozened_matches) = db.run_in_transaction(
+      (accepted, rejected, new_matches, players, frozened_matches) = db.run_in_transaction(
           _make_transaction, self.add_matches, user_player, replays, force)
       mc.delete_multi(
           [m.key().name() for m in frozened_matches], namespace=MC_MATCHES)
@@ -503,8 +510,14 @@ class SC2Ladder(db.Model):
       mc.delete(self.get_ladder_key(), namespace=MC_M4L)
       if self.public:
         mc.delete(MC_PL)
+      if new_matches:
+        if len(new_matches) == 1:
+          ChatChannel.send_chat(self, user_player, ladder_updated=True,
+              sysmsg="uploaded new replay: %s" % force_escape(new_matches[0].name))
+        else:
+          ChatChannel.send_chat(self, user_player, ladder_updated=True,
+              sysmsg="uploaded %d new replays." % len(new_matches))
       return (accepted, rejected)
-
     else:
       new_matches = []
       new_matches_idx = {}
@@ -550,7 +563,7 @@ class SC2Ladder(db.Model):
       # check if any replays were actually upload successfully and early out
       # if there were none accepted.
       if len(accepted) == 0:
-        return (accepted, rejected, [], [])
+        return (accepted, rejected, [], [], [])
 
       # Now we do the meaty work of pulling down match history so we can insert
       # the match into the proper place in time and accurately adjust player
@@ -589,18 +602,20 @@ class SC2Ladder(db.Model):
       self.matches_played = self.matches_played + len(new_matches)
       db.put([self] + frozened_matches + new_matches + players)
 
-      return (accepted, rejected, players, frozened_matches)
+      return (accepted, rejected, new_matches, players, frozened_matches)
 
-  def remove_match(self, match):
+  def remove_match(self, match, user_player):
     if not db.is_in_transaction():
       players = db.run_in_transaction(_make_transaction,
-          self.remove_match, match)
+          self.remove_match, match, user_player)
       mc.delete_multi([p.user_id for p in players], namespace=MC_L4U)
       mc.delete(match.key().name(), namespace=MC_MATCHES)
       mc.delete(self.get_ladder_key(), namespace=MC_P4L)
       mc.delete(self.get_ladder_key(), namespace=MC_M4L)
       if self.public:
         mc.delete(MC_PL)
+      ChatChannel.send_chat(self, user_player, ladder_updated=True,
+          sysmsg="removed a match: %s" % force_escape(match.name))
     else:
       # refetch match as part of transaction
       match = SC2Match.get(match.key())
@@ -631,15 +646,25 @@ class SC2Ladder(db.Model):
       # SAVE ALL THE THINGS!
       self.matches_played = self.matches_played - 1
       players = [p for p in players.itervalues()]
+      for player in players:
+        if player.matches_played:
+          player.fuzzy_rating = player.glicko_rating - player.glicko_rd * 2
+          logging.info("save rating for %s %f %f = %f", player.name,
+              player.glicko_rating, player.glicko_rd, player.fuzzy_rating)
+        else:
+          player.fuzzy_rating = 0.0
+          player.glicko_rating = 0.0
+          player.glicko_rd = 0.0
+          player.glicko_vol = 0.0
       db.put([self] + players)
 
       match.delete()
       return players
 
-  def remove_all_the_matches(self):
+  def remove_all_the_matches(self, user_player):
     if not db.is_in_transaction():
       (match_keys, players) = db.run_in_transaction(_make_transaction,
-          self.remove_all_the_matches)
+          self.remove_all_the_matches, user_player)
       mc.delete_multi(
           [k.name() for k in match_keys], namespace=MC_MATCHES)
       mc.delete_multi([p.user_id for p in players], namespace=MC_L4U)
@@ -647,6 +672,8 @@ class SC2Ladder(db.Model):
       mc.delete(self.get_ladder_key(), namespace=MC_M4L)
       if self.public:
         mc.delete(MC_PL)
+      ChatChannel.send_chat(self, user_player, ladder_updated=True,
+          sysmsg="removed all the matches!")
     else:
       # get all the matches, then delete them.s
       match_keys = [k for k in SC2Match.all(keys_only=True).ancestor(self)]
@@ -1123,6 +1150,20 @@ class ChatChannel(db.Model):
     return token
 
   @classmethod
+  def get_channels(cls, ladder):
+    for i in xrange(3):
+      channels = mc.gets(ladder.get_ladder_key(), namespace=MC_CHANNELS)
+      if not channels:
+        channels = {}
+        for c in ChatChannel.gql("WHERE ANCESTOR IS :1 AND connected > :2",
+            ladder, datetime.datetime.utcnow() - datetime.timedelta(hours=2)):
+          channels[c.key().name()] = c.player_name
+        if mc.add(ladder.get_ladder_key(), channels, namespace=MC_CHANNELS, time=7200):
+          return mc.gets(ladder.get_ladder_key(), namespace=MC_CHANNELS)
+      else:
+        return channels
+
+  @classmethod
   def client_connected(cls, client_id):
     (ladder_name, user_id) = client_id.split('_')
     logging.info("chat client %s (%s, %s) connected", client_id, ladder_name, user_id)
@@ -1133,26 +1174,30 @@ class ChatChannel(db.Model):
     player = SC2Player.gql("WHERE ANCESTOR IS :1 AND user_id = :2",
         ladder, user_id).get()
 
-    ch = cls(parent=ladder, key_name=client_id)
+    channels = cls.get_channels(ladder)
+
+    ch = cls(parent=ladder, key_name=client_id,
+        player_name=str(force_escape(player.name)), connected=datetime.datetime.utcnow())
     ch.put()
 
-    for i in xrange(10):
-      channels = mc.gets(ladder_name, namespace=MC_CHANNELS)
-      if not channels:
-        channels = {}
-        for c in ChatChannel.all().ancestor(ladder):
-          channels[c.key().name()] = c.player_name
-        channels[ch.key().name()] = player.name
-        if mc.add(ladder_name, channels, namespace=MC_CHANNELS):
-          cls.send_chat(ladder, player, sysmsg="joined ladder chat.", presence=channels)
-          return
-      else:
-        if ch.key().name() in channels:
-          return
-        channels[ch.key().name()] = player.name
-        if mc.cas(ladder_name, channels, namespace=MC_CHANNELS):
-          cls.send_chat(ladder, player, sysmsg="joined ladder chat.", presence=channels)
-          return
+    if not channels:
+      channels = {}
+
+    # don't announce channel join, if player already joined.
+    if ch.key().name() in channels:
+      return
+
+    for i in xrange(3):
+      logging.info("current channels: %s", str(channels))
+      # joining player already in the channel. do nothing.
+      if ch.key().name() in channels:
+        return
+      channels[ch.key().name()] = player.name
+      if mc.cas(ladder_name, channels, namespace=MC_CHANNELS, time=7200):
+        cls.send_chat(ladder, player, sysmsg="joined ladder chat.",
+            channels=channels, skip=client_id)
+        return
+      channels = cls.get_channels(ladder)
     raise ChatChannel.FailedStoringClientConnection
 
   @classmethod
@@ -1165,33 +1210,51 @@ class ChatChannel(db.Model):
     ladder = SC2Ladder.get_ladder_by_name(ladder_name)
     player = SC2Player.gql("WHERE ANCESTOR IS :1 AND user_id = :2",
         ladder, user_id).get()
-    db.delete(db.Key.from_path('SC2Ladder', ladder_name, str(cls), client_id))
 
-    for i in xrange(10):
-      channels = mc.gets(ladder_name, namespace=MC_CHANNELS)
-      if not channels:
-        return
+    channels = cls.get_channels(ladder)
+
+    if not channels:
+      return
+
+    if client_id in channels:
+      db.delete(db.Key.from_path('SC2Ladder', ladder_name, str(cls), client_id))
+
+    for i in xrange(3):
       try:
         del channels[client_id]
-        if mc.cas(ladder_name, channels, namespace=MC_CHANNELS):
-          cls.send_chat(ladder, player, sysmsg="left ladder chat.", presense=channels)
+        if mc.cas(ladder_name, channels, namespace=MC_CHANNELS, time=7200):
+          cls.send_chat(ladder, player, sysmsg="left ladder chat.", channels=channels)
           return
       except KeyError:
         return
+      channels = cls.get_channels(ladder)
     raise ChatChannel.FailedDeletingClientConnection
 
   @classmethod
   def get_chat_history(cls, ladder, last_chat_msg):
     chat_history = mc.get(ladder.get_ladder_key(), namespace=MC_CHATS)
+
     if not chat_history:
       chat_history = []
-    logging.info("stored chat history: %s", str(chat_history))
-    out = simplejson.dumps(filter(lambda x: x['t'] > int(last_chat_msg), chat_history))
+
+    channels = cls.get_channels(ladder)
+    if not channels:
+      channels = {}
+
+    logging.info("presense: %s", str(channels))
+
+    json_obj = {
+      'chat': filter(lambda x: x['t'] > float(last_chat_msg), chat_history),
+      'presence': sorted(channels.itervalues(), key=unicode.lower),
+    }
+
+    out = simplejson.dumps(json_obj)
     logging.info(out)
     return out
 
   @classmethod
-  def send_chat(cls, ladder, user_player, msg=None, sysmsg=None, presence=None):
+  def send_chat(cls, ladder, user_player, msg=None, sysmsg=None, ladder_updated=False,
+      channels=None, skip=''):
     chat = {
       't': time.time(),
       'n': force_escape(user_player.name),
@@ -1199,15 +1262,18 @@ class ChatChannel(db.Model):
 
     if sysmsg:
       chat['s'] = force_escape(sysmsg)
-    else:
+    if msg:
       chat['m'] = urlize(force_escape(msg[:4096]))
 
     json_obj = {
       'chat': [chat],
     }
 
-    if presence:
-      json_obj['presence'] = sorted(presence.itervalues, key=str.lower)
+    logging.info("presence: %s", str(channels))
+    if channels:
+      json_obj['presence'] = sorted(channels.itervalues(), key=unicode.lower)
+    if ladder_updated:
+      json_obj['ladder_updated'] = True
 
     logging.info("send_chat %s", str(json_obj))
     for i in xrange(10):
@@ -1216,25 +1282,36 @@ class ChatChannel(db.Model):
         chat_history = []
         chat_history.append(chat)
         if mc.add(ladder.get_ladder_key(), chat_history, namespace=MC_CHATS):
-          return cls.publish(ladder, json_obj)
+          return cls.publish(ladder, json_obj, skip)
       else:
         chat_history.append(chat)
         if len(chat_history) > 100:
           chat_history.pop(0)
         if mc.cas(ladder.get_ladder_key(), chat_history, namespace=MC_CHATS):
-          return cls.publish(ladder, json_obj)
+          return cls.publish(ladder, json_obj, skip)
     raise ChatChannel.FailedSendChat
 
   @classmethod
-  def publish(cls, ladder, json_obj):
+  def publish(cls, ladder, json_obj, skip):
     json_msg = simplejson.dumps(json_obj)
-    channels = mc.gets(ladder.get_ladder_key(), namespace=MC_CHANNELS)
-    if not channels:
-      channels = [c.name() for c in ChatChannel.all(keys_only=True).ancestor(ladder)]
-      mc.add(ladder.get_ladder_key(), channels, namespace=MC_CHANNELS)
-    for ch in channels:
-      logging.info("sending message to %s: %s", ch, json_msg)
-      channel.send_message(ch, json_msg)
+    channels = cls.get_channels(ladder)
+    try:
+      for ch in channels.iterkeys():
+        if ch == skip:
+          if 'presence' in json_obj:
+            skip_obj = {
+              'presence': json_obj['presence'],
+            }
+            skip_msg = simplejson.dumps(skip_obj)
+            logging.info("only sending presence to %s: %s", ch, skip_msg)
+            channel.send_message(ch, skip_msg)
+          else:
+            logging.info("skipping message to %s", ch)
+        else:
+          logging.info("sending message to %s: %s", ch, json_msg)
+          channel.send_message(ch, json_msg)
+    except NoneType:
+      pass
     return True
 
 

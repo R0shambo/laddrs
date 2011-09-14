@@ -41,33 +41,32 @@ div#butter {
   opacity: 0.9;
 }
 #chat-container:hover {
-  opacity: 0.95;
-  transition: all 0.25s ease-out;
-  -moz-transition: all 0.25s ease-out; /* Firefox 4 */
-  -webkit-transition: all 0.25s ease-out; /* Safari and Chrome */
-  -o-transition: all 0.25s ease-out; /* Opera */
+  opacity: 1;
+  transition: opacity 1s ease-out;
+  -moz-transition: opacity 1s ease-out; /* Firefox 4 */
+  -webkit-transition: opacity 1s ease-out; /* Safari and Chrome */
+  -o-transition: opacity 1s ease-out; /* Opera */
 }
-#chat-container {
+#chat-container, #presence-container {
   display: none;
-  opacity: 0.8;
+  opacity: 1;
   padding: 0;
   border-left: 1px solid darkblue;
   border-right: 1px solid darkblue;
   min-width: 250px;
-  max-width: 33%;
+  max-width: 400px;
   min-height: 15px;
-  max-height: 100%;
   position: fixed;
   bottom: 0;
-  right: 5%;
+  right: 50;
   z-index: 999;
   box-shadow: 0 0 8px #888;
   border-top-left-radius: 10px;
   border-top-right-radius: 10px;
-  transition: all 1s ease-out;
-  -moz-transition: all 1s ease-out; /* Firefox 4 */
-  -webkit-transition: all 1s ease-out; /* Safari and Chrome */
-  -o-transition: all 1s ease-out; /* Opera */
+  transition: opacity 1s ease-out;
+  -moz-transition: opacity 1s ease-out; /* Firefox 4 */
+  -webkit-transition: opacity 1s ease-out; /* Safari and Chrome */
+  -o-transition: opacity 1s ease-out; /* Opera */
 }
 #chat-header {
   background-color: darkblue;
@@ -80,17 +79,17 @@ div#butter {
   text-align: center;
   border-top-left-radius: 10px;
   border-top-right-radius: 10px;
-  transition: all 1s ease-out;
-  -moz-transition: all 1s ease-out; /* Firefox 4 */
-  -webkit-transition: all 1s ease-out; /* Safari and Chrome */
-  -o-transition: all 1s ease-out; /* Opera */
+  transition: background-color 1s ease-out;
+  -moz-transition: background-color 1s ease-out; /* Firefox 4 */
+  -webkit-transition: background-color 1s ease-out; /* Safari and Chrome */
+  -o-transition: background-color 1s ease-out; /* Opera */
 }
 #chat-header.throb {
   background-color: darkred;
-  transition: all 1s ease-in;
-  -moz-transition: all 1s ease-in; /* Firefox 4 */
-  -webkit-transition: all 1s ease-in; /* Safari and Chrome */
-  -o-transition: all 1s ease-in; /* Opera */
+  transition: background-color 1s ease-in;
+  -moz-transition: background-color 1s ease-in; /* Firefox 4 */
+  -webkit-transition: background-color 1s ease-in; /* Safari and Chrome */
+  -o-transition: background-color 1s ease-in; /* Opera */
 }
 #chat-header a {
   color: white;
@@ -102,7 +101,12 @@ div#butter {
   background-color: white;
   overflow: auto;
   max-height: 400px;
+  width: 392px;
   display: none;
+  transition: opacity 1s ease-out;
+  -moz-transition: opacity 1s ease-out; /* Firefox 4 */
+  -webkit-transition: opacity 1s ease-out; /* Safari and Chrome */
+  -o-transition: opacity 1s ease-out; /* Opera */
 }
 
 #chatbox div.system {
@@ -118,6 +122,49 @@ div#butter {
   padding-left: 1em;
 }
 #chatbox div.message span.name {
+  font-weight: bold;
+}
+
+#presence-container {
+  min-width: 60px;
+  max-width: 200px;
+  display: none;
+  bottom: 10px;
+  right: 440px;
+  border: 1px solid darkblue;
+  z-index: 998;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+  border-bottom-left-radius: 10px;
+}
+#presence-header {
+  background-color: darkblue;
+  color: white;
+  font-size: 70%;
+  padding-left: 5px;
+  padding-right: 15px;
+  min-height: 15px;
+  font-weight: bold;
+  text-align: center;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  transition: opacity 1s ease-out;
+  -moz-transition: opacity 1s ease-out; /* Firefox 4 */
+  -webkit-transition: opacity 1s ease-out; /* Safari and Chrome */
+  -o-transition: opacity 1s ease-out; /* Opera */
+}
+
+#chat-presence {
+  background-color: white;
+  padding-left: 10px;
+  padding-right: 17px;
+  max-height: 200px;
+  overflow: auto;
+  border-bottom-left-radius: 10px;
+  transition: opacity 1s ease-out;
+  -moz-transition: opacity 1s ease-out; /* Firefox 4 */
+  -webkit-transition: opacity 1s ease-out; /* Safari and Chrome */
+  -o-transition: opacity 1s ease-out; /* Opera */
   font-weight: bold;
 }
 
