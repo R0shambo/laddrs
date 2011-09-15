@@ -13,8 +13,15 @@ laddrs.color_options = [
   '#00c', '#90c', '#c30', '#330', '#066',
   '#00f', '#c39', '#933', '#663', '#099',
 ];
-laddrs.reconnect_delay=5000;
-laddrs.socket = '';
+laddrs.pinger = false;
+laddrs.connection_attempt = 1;
+laddrs.connection_timeout = 30000;
+laddrs.reconnect_delay = 5000;
+laddrs.reconnecting = false;
+laddrs.socket = {
+  readyState: 3,
+};
+laddrs.sendchatenabled = false;
 
 laddrs.pickColor = function() {
   return laddrs.color_options[laddrs.colors_picked++ % laddrs.color_options.length]
@@ -53,9 +60,13 @@ laddrs.StartChannel = function(ladder_name, user_id) {
 }
 
 laddrs.GetTokenAndOpenChannel = function() {
+  if (laddrs.pinger) {
+    clearTimeout(laddrs.pinger);
+  }
   var xhr = laddrs.XHR();
   xhr.onreadystatechange=function() {
     if (xhr.readyState==4) {
+      laddrs.reconnecting = false;
       if (xhr.status==200) {
         laddrs.token = xhr.responseText;
         laddrs.OpenChannel();
@@ -66,6 +77,7 @@ laddrs.GetTokenAndOpenChannel = function() {
           description: "Chat connection failed",
         }
         laddrs.ChannelErrored(e);
+        laddrs.ChannelClosed();
       }
     }
   }
@@ -83,15 +95,19 @@ laddrs.GetTokenAndOpenChannel = function() {
 }
 
 laddrs.OpenChannel = function() {
-  var channel = new goog.appengine.Channel(laddrs.token);
-  var handler = {
-    'onopen': laddrs.ChannelOpened,
-    'onmessage': laddrs.ChannelMessaged,
-    'onerror': laddrs.ChannelErrored,
-    'onclose': laddrs.ChannelClosed,
-  };
-  laddrs.socket = channel.open(handler);
-  //laddrs.socket.onerror = laddrs.ChannelErrored;
+  if (laddrs.socket.readyState > 1) {
+    var channel = new goog.appengine.Channel(laddrs.token);
+    var handler = {
+      'onopen': laddrs.ChannelOpened,
+      'onmessage': laddrs.ChannelMessaged,
+      'onerror': laddrs.ChannelErrored,
+      'onclose': laddrs.ChannelClosed,
+    };
+    laddrs.connection_timeout *= laddrs.connection_attempt++;
+    laddrs.connection_timeout = laddrs.connection_timeout > 180000 ? 180000 : laddrs.connection_timeout;
+    laddrs.pinger = setTimeout("laddrs.PingChannel();", laddrs.connection_timeout);
+    laddrs.socket = channel.open(handler);
+  }
 }
 
 laddrs.SendChatMsg = function(el) {
@@ -102,17 +118,18 @@ laddrs.SendChatMsg = function(el) {
       m: msg,
     }
     // Send the chat message over XHR
+    var xhr = laddrs.XHR();
+    xhr.onreadystatechange=function() {
+      if (xhr.readyState==4 && xhr.status!=200) {
+        var e = {
+          code: xhr.status,
+          description: "Error sending chat message",
+        };
+        laddrs.ChannelErrored(e);
+      }
+    }
     laddrs.Action(null, "send-chat", params);
     input.value = "";
-    /*var t = new Date();
-    var c = {
-      t: t.getTime(),
-      n: "Player",
-      m: msg,
-    };
-    var chat = new Array(c);
-    laddrs.AddChatMessages(chat);
-    */
   }
 }
 
@@ -126,6 +143,10 @@ laddrs.GetLadderUpdate = function() {
     }
   }
   laddrs.Action(xhr, "get-ladder-data", null);
+}
+
+laddrs.GetTime = function(t) {
+  return (t.getHours() < 10 ? "0" + t.getHours() : t.getHours()) + ":" + (t.getMinutes() < 10 ? "0" + t.getMinutes() : t.getMinutes());
 }
 
 laddrs.AddChatMessages = function(chat) {
@@ -149,13 +170,17 @@ laddrs.AddChatMessages = function(chat) {
     }
     else {
       div.className = "message";
-      var name = document.createElement("span")
+      var ts = document.createElement("span");
+      ts.className = "ts";
+      ts.innerHTML = laddrs.GetTime(t) + " ";
+      var name = document.createElement("span");
       name.className = "name";
       name.style.color = laddrs.colors[c.n];
       name.innerHTML = c.n + ": ";
-      var text = document.createElement("span")
+      var text = document.createElement("span");
       text.className = "chatmsg";
       text.innerHTML = c.m;
+      div.appendChild(ts);
       div.appendChild(name);
       div.appendChild(text);
     }
@@ -201,7 +226,23 @@ laddrs.StopThrobbing = function() {
   document.getElementById("chat-header").className="";
 }
 
+laddrs.EnableSendChatBox = function(bool) {
+  if (laddrs.sendchatboxenabled != bool) {
+    laddrs.sendchatboxenabled = bool;
+    var sendchatbox = document.getElementById("sendchatbox");
+    sendchatbox.disabled = !bool;
+    sendinputs = sendchatbox.getElementsByTagName("input");
+    for (var i in sendinputs) {
+      var input = sendinputs[i];
+      input.disabled = !bool;
+    }
+  }
+}
+
 laddrs.ChannelOpened = function() {
+  laddrs.reconnecting = false;
+  laddrs.pinger = setTimeout("laddrs.PingChannel();", 120000);
+  laddrs.EnableSendChatBox(true);
   if (laddrs.first_open) {
     document.getElementById("chat-container").style.display = 'block';
     toggleChatBox(true);
@@ -218,6 +259,8 @@ laddrs.ChannelOpened = function() {
     cb.scrollTop = cb.scrollHeight;
   }
 
+  laddrs.connection_attempt = 1;
+  laddrs.connection_timeout = 30000;
   laddrs.reconnect_delay = 5000;
 
   // fetch chat history
@@ -230,8 +273,6 @@ laddrs.ChannelOpened = function() {
       var msg = {};
       msg.data = xhr.responseText
       laddrs.ChannelMessaged(msg)
-      /*
-      */
     }
   }
   laddrs.Action(xhr, "get-chat-history", params);
@@ -245,11 +286,19 @@ laddrs.ChannelErrored = function(e) {
   cb = document.getElementById("chatbox")
   cb.appendChild(newdiv);
   cb.scrollTop = cb.scrollHeight;
-  laddrs.ChannelClosed();
+  if (laddrs.socket.readyState == 1) {
+    clearTimeout(laddrs.pinger);
+    laddrs.alive = true;
+    laddrs.PingChannel(20000, true);
+  }
+  else {
+    laddrs.ChannelClosed();
+  }
 }
 
 laddrs.ChannelMessaged = function(m) {
   var msg = JSON.parse(m.data);
+  laddrs.alive = true;
   if (msg.chat) {
     laddrs.AddChatMessages(msg.chat);
     laddrs.ThrobChatHeader();
@@ -271,17 +320,50 @@ laddrs.ChannelMessaged = function(m) {
 }
 
 laddrs.ChannelClosed = function() {
-  var newdiv = document.createElement("div");
-  var now = new Date();
-  newdiv.className = "system";
-  newdiv.appendChild(document.createTextNode("Chat disconnected. Will retry in " + laddrs.reconnect_delay / 1000 + " seconds."));
-  newdiv.title = now.toLocaleDateString() + " " + now.toLocaleTimeString();
-  cb = document.getElementById("chatbox")
-  cb.appendChild(newdiv);
-  cb.scrollTop = cb.scrollHeight;
-  setTimeout('laddrs.GetTokenAndOpenChannel();', laddrs.reconnect_delay);
-  laddrs.reconnect_delay *= 2;
-  if (laddrs.reconnect_delay > 120000) {
-    laddrs.reconnect_delay = 120000;
+  if (!laddrs.reconnecting) {
+    laddrs.reconnecting = true;
+    laddrs.EnableSendChatBox(false);
+    if (!laddrs.first_open) {
+      var newdiv = document.createElement("div");
+      var now = new Date();
+      newdiv.className = "system";
+      newdiv.appendChild(document.createTextNode("Chat disconnected. Will retry in " + laddrs.reconnect_delay / 1000 + " seconds."));
+      newdiv.title = now.toLocaleDateString() + " " + now.toLocaleTimeString();
+      cb = document.getElementById("chatbox")
+      cb.appendChild(newdiv);
+      cb.scrollTop = cb.scrollHeight;
+    }
+    setTimeout('laddrs.GetTokenAndOpenChannel();', laddrs.reconnect_delay);
+    laddrs.reconnect_delay *= 2;
+    if (laddrs.reconnect_delay > 120000) {
+      laddrs.reconnect_delay = 120000;
+    }
+  }
+}
+
+laddrs.PingChannel = function(wait, disablesendchatbox) {
+  var use_wait = wait ? wait : 120000;
+  if (laddrs.alive) {
+    if (disablesendchatbox) {
+      laddrs.EnableSendChatBox(false);
+    }
+    laddrs.alive = false;
+    laddrs.Action(null, "ping", null);
+    laddrs.pinger = setTimeout("laddrs.PingChannel();", use_wait);
+  }
+  else {
+    if (laddrs.socket.readyState < 2) {
+      if (!laddrs.first_open) {
+        var newdiv = document.createElement("div");
+        var now = new Date();
+        newdiv.className = "system";
+        newdiv.appendChild(document.createTextNode("Chat stalled."));
+        newdiv.title = now.toLocaleDateString() + " " + now.toLocaleTimeString();
+        cb = document.getElementById("chatbox")
+        cb.appendChild(newdiv);
+        cb.scrollTop = cb.scrollHeight;
+      }
+      laddrs.socket.close();
+    }
   }
 }

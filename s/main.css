@@ -125,6 +125,10 @@ div#butter {
   font-weight: bold;
 }
 
+#chatbox .ts {
+  font-size: 80%;
+}
+
 #presence-container {
   min-width: 60px;
   max-width: 200px;
@@ -412,10 +416,6 @@ ol {
   float: left;
   margin-right: 5px;
   dislay: table-cell;
-}
-
-.player-name {
-  diplay: table-cell;
 }
 
 .row2 {

@@ -55,7 +55,9 @@ class MainPage(webapp.RequestHandler):
       self.response.out.write("<h1>Channel Not Found</h1>")
       return
 
-    if action == 'get-token':
+    if action == 'ping':
+      self.response.out.write(ChatChannel.ping(ladder, user))
+    elif action == 'get-token':
       self.response.out.write(ChatChannel.get_token(ladder, user))
     elif action == 'get-chat-history':
       self.response.out.write(ChatChannel.get_chat_history(ladder,

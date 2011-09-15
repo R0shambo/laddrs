@@ -56,6 +56,7 @@ sc2ranks_throttle = time.time()
 
 mc = memcache.Client()
 
+PING_MSG = simplejson.dumps({'ping': True})
 
 class SC2Ladder(db.Model):
   """Ladders ultimately consist of a collection of players and the
@@ -1314,6 +1315,13 @@ class ChatChannel(db.Model):
     except AttributeError:
       logging.info("%s channel empty.", ladder.get_ladder_key())
     return True
+
+  @classmethod
+  def ping(cls, ladder, user):
+    client_id = "%s_%s" % (ladder.get_ladder_key(), user.user_id())
+    logging.info("pinging %s", client_id)
+    channel.send_message(client_id, PING_MSG)
+    return "OK"
 
 
 class FaqEntry(db.Model):

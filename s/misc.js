@@ -39,3 +39,9 @@ function togglePresence(force) {
     presence.style.display = 'none';
   }
 }
+
+function toggleTimestamps() {
+  var style = document.getElementById("timestamp-style");
+  style.disabled = !style.disabled;
+}
+
