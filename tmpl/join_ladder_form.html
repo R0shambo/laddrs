@@ -1,6 +1,6 @@
 {% if user %}
  {% if errormsg %}<div class="error">{% include "tableflipper.html" %} {{errormsg|escape}}</div>{%endif%}
- <form action="/join_ladder/{{ladder.key|escape}}" method="post">
+ <form action="/join_ladder/{{ladder.get_ladder_key}}" method="post">
   <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
   {%if ladder.invite_only or not ladder.public%}
    <div>To join this ladder, you must have a valid invite-code.</div>
@@ -8,10 +8,10 @@
   {%endif%}
   <div><b>Your Player Info</b><br>
   </div><br>
-  {%include "player_inputs.html"%}  
-  
+  {%include "player_inputs.html"%}
+
   <div><input type="submit" value="Join Ladder"></div>
- </form>  
+ </form>
 {% else %}
  You must first <a href="{{ auth_url }}">{{ auth_url_linktext }}</a> if you want
  to join a ladder.

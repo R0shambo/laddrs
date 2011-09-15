@@ -35,7 +35,9 @@ MC_L4U="ladders-for-user_v2"
 MC_M4L="matches-for-ladder_v2"
 MC_P4L="players-for-ladder_v2"
 MC_SC2RP="sc2rank-player_v2"
+MC_LADDER="ladders_v1"
 MC_MATCHES="matches_v2"
+MC_USERPLAYER="userplayer_v1"
 MC_FAQS="faqs_v2"
 MC_CID="clientid_v1_%s" % os.getenv('CURRENT_VERSION_ID')
 MC_CHANNELS="channels_v1"
@@ -93,7 +95,7 @@ class SC2Ladder(db.Model):
     return slugify(ladder_name)[:42]
 
   def get_ladder_key(self):
-    return self.ladder_key(self.name)
+    return self.key().name()
 
   @classmethod
   def gen_ladder_invite_code(cls):
@@ -103,9 +105,14 @@ class SC2Ladder(db.Model):
   def create_ladder(cls, user, ladder_name, region, description, public,
       invite_only, player_name, bnet_id, char_code):
     if not db.is_in_transaction():
-      return db.run_in_transaction(_make_transaction, cls.create_ladder,
+      ladder = db.run_in_transaction(_make_transaction, cls.create_ladder,
           user, ladder_name, region, description, public, invite_only,
           player_name, bnet_id, char_code)
+      mc.delete(ladder.get_ladder_key(), namespace=MC_LADDER)
+      mc.delete(user.user_id(), namespace=MC_L4U)
+      if public:
+        mc.delete(MC_PL)
+      return ladder
     else:
       # cleanup
       ladder_name = ladder_name.strip()
@@ -140,16 +147,16 @@ class SC2Ladder(db.Model):
       player = ladder.add_player(
           player_name, bnet_id, char_code, user, admin=True)
 
-      mc.delete(user.user_id(), namespace=MC_L4U)
-      if public:
-        mc.delete(MC_PL)
-
       return ladder
 
   def update_ladder(self, description, public, invite_only, regen_invite_code):
     if not db.is_in_transaction():
-      return db.run_in_transaction(_make_transaction, self.update_ladder,
+      ladder = db.run_in_transaction(_make_transaction, self.update_ladder,
           description, public, invite_only, regen_invite_code)
+      mc.delete(ladder.get_ladder_key(), namespace=MC_LADDER)
+      mc.delete(users.get_current_user().user_id(), namespace=MC_L4U)
+      mc.delete(MC_PL)
+      return ladder
     else:
       # sanity checks.
       if not description:
@@ -162,15 +169,19 @@ class SC2Ladder(db.Model):
         self.invite_code = self.gen_ladder_invite_code()
 
       self.put()
-
-      mc.delete(users.get_current_user().user_id(), namespace=MC_L4U)
-      mc.delete(MC_PL)
       return self
 
   def add_player(self, player_name, bnet_id, char_code, user, admin=False):
     if not db.is_in_transaction():
       newplayer = db.run_in_transaction(_make_transaction, self.add_player,
           player_name, bnet_id, char_code, user, admin)
+      lk = self.get_ladder_key()
+      mc.delete(lk, namespace=MC_LADDER)
+      mc.delete("%s|%s" % (lk, user.user_id()), namespace=MC_USERPLAYER)
+      mc.delete(user.user_id(), namespace=MC_L4U)
+      mc.delete(lk, namespace=MC_P4L)
+      if self.public:
+        mc.delete(MC_PL)
       ChatChannel.send_chat(self, newplayer, ladder_updated=True,
             sysmsg="has joined the ladder!")
       return newplayer
@@ -213,16 +224,19 @@ class SC2Ladder(db.Model):
       player.put()
       self.players = self.players + 1
       self.put()
-      mc.delete(user.user_id(), namespace=MC_L4U)
-      mc.delete(self.get_ladder_key(), namespace=MC_P4L)
-      if self.public:
-        mc.delete(MC_PL)
       return player
 
   def remove_player(self, player):
     if not db.is_in_transaction():
       if db.run_in_transaction(_make_transaction, self.remove_player,
           player):
+        lk = self.get_ladder_key()
+        mc.delete(lk, namespace=MC_LADDER)
+        mc.delete("%s|%s" % (lk, player.user_id), namespace=MC_USERPLAYER)
+        mc.delete(player.user_id, namespace=MC_L4U)
+        mc.delete(lk, namespace=MC_P4L)
+        if self.public:
+          mc.delete(MC_PL)
         ChatChannel.send_chat(self, player, ladder_updated=True,
             sysmsg="quit the ladder.")
         return True
@@ -240,11 +254,6 @@ class SC2Ladder(db.Model):
         player.delete()
         self.players = self.players - 1
         self.put()
-
-        mc.delete(player.user_id, namespace=MC_L4U)
-        mc.delete(self.get_ladder_key(), namespace=MC_P4L)
-        if self.public:
-          mc.delete(MC_PL)
         return True
       # nothing deleted
       return False
@@ -504,11 +513,14 @@ class SC2Ladder(db.Model):
     if not db.is_in_transaction():
       (accepted, rejected, new_matches, players, frozened_matches) = db.run_in_transaction(
           _make_transaction, self.add_matches, user_player, replays, force)
+      lk = self.get_ladder_key()
+      mc.delete(lk, namespace=MC_LADDER)
       mc.delete_multi(
-          [m.key().name() for m in frozened_matches], namespace=MC_MATCHES)
+          [m.get_match_key() for m in frozened_matches], namespace=MC_MATCHES)
       mc.delete_multi([p.user_id for p in players], namespace=MC_L4U)
-      mc.delete(self.get_ladder_key(), namespace=MC_P4L)
-      mc.delete(self.get_ladder_key(), namespace=MC_M4L)
+      mc.delete_multi(["%s|%s" % (lk, p.user_id) for p in players], namespace=MC_USERPLAYER)
+      mc.delete(lk, namespace=MC_P4L)
+      mc.delete(lk, namespace=MC_M4L)
       if self.public:
         mc.delete(MC_PL)
       if new_matches:
@@ -609,10 +621,13 @@ class SC2Ladder(db.Model):
     if not db.is_in_transaction():
       players = db.run_in_transaction(_make_transaction,
           self.remove_match, match, user_player)
+      lk = self.get_ladder_key()
+      mc.delete(lk, namespace=MC_LADDER)
+      mc.delete_multi(["%s|%s" % (lk, p.user_id) for p in players], namespace=MC_USERPLAYER)
       mc.delete_multi([p.user_id for p in players], namespace=MC_L4U)
-      mc.delete(match.key().name(), namespace=MC_MATCHES)
-      mc.delete(self.get_ladder_key(), namespace=MC_P4L)
-      mc.delete(self.get_ladder_key(), namespace=MC_M4L)
+      mc.delete(match.get_match_key(), namespace=MC_MATCHES)
+      mc.delete(lk, namespace=MC_P4L)
+      mc.delete(lk, namespace=MC_M4L)
       if self.public:
         mc.delete(MC_PL)
       ChatChannel.send_chat(self, user_player, ladder_updated=True,
@@ -666,11 +681,14 @@ class SC2Ladder(db.Model):
     if not db.is_in_transaction():
       (match_keys, players) = db.run_in_transaction(_make_transaction,
           self.remove_all_the_matches, user_player)
+      lk = self.get_ladder_key()
+      mc.delete(lk, namespace=MC_LADDER)
       mc.delete_multi(
           [k.name() for k in match_keys], namespace=MC_MATCHES)
+      mc.delete_multi(["%s|%s" % (lk, p.user_id) for p in players], namespace=MC_USERPLAYER)
       mc.delete_multi([p.user_id for p in players], namespace=MC_L4U)
-      mc.delete(self.get_ladder_key(), namespace=MC_P4L)
-      mc.delete(self.get_ladder_key(), namespace=MC_M4L)
+      mc.delete(lk, namespace=MC_P4L)
+      mc.delete(lk, namespace=MC_M4L)
       if self.public:
         mc.delete(MC_PL)
       ChatChannel.send_chat(self, user_player, ladder_updated=True,
@@ -700,17 +718,16 @@ class SC2Ladder(db.Model):
       db.put([self] + players)
       return (match_keys, players)
 
-
   @classmethod
-  def get_ladder(cls, ladder_key):
+  def get_ladder_by_name(cls, ladder_key):
     """Retrieves a SC2Ladder object from the datastore."""
-    return db.get(ladder_key)
-
-  @classmethod
-  def get_ladder_by_name(cls, ladder_name):
-    """Retrieves a SC2Ladder object from the datastore."""
-    return cls.get_ladder(db.Key.from_path(
-        'SC2Ladder', cls.ladder_key(ladder_name)))
+    ladder = mc.get(ladder_key, namespace=MC_LADDER)
+    if ladder:
+      return ladder
+    ladder = db.get(db.Key.from_path(
+        'SC2Ladder', cls.ladder_key(ladder_key)))
+    mc.add(ladder_key, ladder, namespace=MC_LADDER, time=MC_EXP_MED)
+    return ladder
 
   @classmethod
   def get_ladders_for_user(cls, user, retry=True):
@@ -744,27 +761,23 @@ class SC2Ladder(db.Model):
     return ladders
 
   def get_matches(self, user=None):
-
-    match_keys = mc.get(self.get_ladder_key(), namespace=MC_M4L)
+    lk = self.get_ladder_key()
+    match_keys = mc.get(lk, namespace=MC_M4L)
     if not match_keys:
-      logging.info("fetching match keys for %s", self.get_ladder_key())
+      logging.info("fetching match keys for %s", lk)
       query = SC2Match.all(keys_only=True).ancestor(self)
       query.order('-match_date_utc')
       match_keys = [k for k in query]
-      mc.add(
-          self.get_ladder_key(), match_keys, namespace=MC_M4L, time=MC_EXP_MED)
-    #logging.info("%s match keys: %s", self.get_ladder_key(), str(match_keys))
+      mc.add(lk, match_keys, namespace=MC_M4L, time=MC_EXP_MED)
     matches = mc.get_multi([k.name() for k in match_keys],
         namespace=MC_MATCHES)
-    #logging.info("memcached matches: %s", str(matches))
     fetch_keys = []
     for key in match_keys:
       if not key.name() in matches:
         fetch_keys.append(key)
     # fetch any matches not found in memcache.
     if fetch_keys:
-      logging.info("fetching %d matches for %s", len(fetch_keys),
-          self.get_ladder_key())
+      logging.info("fetching %d matches for %s", len(fetch_keys), lk)
       fetched_matches = SC2Match.get(fetch_keys)
       #logging.info("fetched matches: %s", str(fetched_matches))
       recache = {}
@@ -877,8 +890,14 @@ class SC2Ladder(db.Model):
     return (players, new_players, user_player)
 
   def get_user_player(self, user):
-    return SC2Player.gql("WHERE ANCESTOR IS :1 AND user_id = :2",
+    mckey = "%s|%s" % (self.get_ladder_key(), user.user_id())
+    player = mc.get(mckey, namespace=MC_USERPLAYER)
+    if player:
+      return player
+    player = SC2Player.gql("WHERE ANCESTOR IS :1 AND user_id = :2",
         self.key(), user.user_id()).get()
+    mc.add(mckey, player, namespace=MC_USERPLAYER, time=MC_EXP_MED)
+    return player
 
   @classmethod
   def get_public_ladders(cls):
@@ -950,24 +969,28 @@ class SC2Player(db.Model):
 
   def set_admin(self, admin):
     if not db.is_in_transaction():
-      return db.run_in_transaction(_make_transaction, self.set_admin, admin)
+      rv = db.run_in_transaction(_make_transaction, self.set_admin, admin)
+      lk = self.get_ladder().get_ladder_key()
+      mc.delete("%s|%s" % (lk, self.user_id), namespace=MC_USERPLAYER)
+      mc.delete(lk, namespace=MC_P4L)
+      return rv
     else:
       self.admin = admin
       self.put()
-      mc.delete(self.get_ladder().get_ladder_key(), namespace=MC_P4L)
       return True
 
   def set_player_info(self, nickname, email):
     if not db.is_in_transaction():
-      return db.run_in_transaction(_make_transaction,
-        self.set_player_info, nickname, email)
+      rv = db.run_in_transaction(_make_transaction, self.set_player_info, nickname, email)
+      lk = self.get_ladder().get_ladder_key()
+      mc.delete("%s|%s" % (lk, self.user_id), namespace=MC_USERPLAYER)
+      mc.delete(lk, namespace=MC_P4L)
+      return rv
     else:
       self.nickname = nickname
       self.email = email
       self.put()
-      mc.delete(self.get_ladder().get_ladder_key(), namespace=MC_P4L)
       return True
-
 
   def sc2rank_player_key(self, region):
     return "%s/%s/%s" % (region, self.name, self.bnet_id)
@@ -1014,51 +1037,6 @@ class SC2Player(db.Model):
       except:
         logging.warning("failed to get portrait for %s/%s",
             self.name, self.bnet_id, exc_info=True)
-
-  @classmethod
-  def adjust_rating(cls, winners, losers):
-
-    winner_rating = 0
-    for p in winners:
-      if not p.rating:
-        p.rating = DEFAULT_ELO_RATING
-      winner_rating = winner_rating + p.rating
-    loser_rating = 0
-    for p in losers:
-      if not p.rating:
-        p.rating = DEFAULT_ELO_RATING
-      loser_rating = loser_rating + p.rating
-
-    rating_diff = winner_rating - loser_rating
-    exp = (rating_diff * -1) / 400
-    odds = 1 / (1 + math.pow(10, exp))
-    bonus = len(losers) - len(winners) + 1
-    if bonus < 1: bonus = 1
-    if winner_rating < 2100:
-        k = 32 * bonus
-    elif winner_rating >= 2100 and winner_rating < 2400:
-        k = 24 * bonus
-    else:
-        k = 16 * bonus
-    new_winner_rating = round(winner_rating + (k * (1 - odds)))
-    winner_rating_delta = new_winner_rating - winner_rating
-    new_loser_rating = loser_rating - winner_rating_delta
-    loser_rating_delta = new_loser_rating - loser_rating
-
-    winner_rating_delta = int(round(winner_rating_delta / len(winners))) or 1
-    loser_rating_delta = int(round(loser_rating_delta / len(losers))) or -1
-
-    for p in winners:
-      old_rating = p.rating
-      p.rating = p.rating + winner_rating_delta
-      logging.info("winning player %s rating %d -> %d",
-          p.name, old_rating, p.rating)
-    for p in losers:
-      old_rating = p.rating
-      p.rating = p.rating + loser_rating_delta
-      if p.rating < 1: p.rating = 1
-      logging.info("losing player %s rating %d -> %d",
-          p.name, old_rating, p.rating)
 
 
 class SC2Match(db.Model):
@@ -1221,6 +1199,10 @@ class ChatChannel(db.Model):
     if client_id in channels:
       db.delete(db.Key.from_path('SC2Ladder', ladder_name, str(cls), client_id))
 
+    # no player if player just quit ladder.
+    if not player:
+      player = channels[client_id]
+
     for i in xrange(3):
       try:
         del channels[client_id]
@@ -1257,9 +1239,13 @@ class ChatChannel(db.Model):
   @classmethod
   def send_chat(cls, ladder, user_player, msg=None, sysmsg=None, ladder_updated=False,
       channels=None, skip=''):
+    try:
+      player_name = user_player.name
+    except AttributeError:
+      player_name = user_player
     chat = {
       't': time.time(),
-      'n': force_escape(user_player.name),
+      'n': force_escape(player_name),
     }
 
     if sysmsg:

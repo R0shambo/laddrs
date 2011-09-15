@@ -25,7 +25,7 @@ function toggleChatBox(force) {
     box.style.display = 'none';
     sendbox.style.display = 'none';
     document.getElementById("presence-container").style.display = 'none';
-    container.style.opacity = 0.6;
+    container.style.opacity = 0.75;
   }
 }
 
