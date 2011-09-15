@@ -102,7 +102,7 @@ laddrs.OpenChannel = function() {
       'onerror': laddrs.ChannelErrored,
       'onclose': laddrs.ChannelClosed,
     };
-    var timeout = 30000 *= laddrs.connection_attempt++;
+    var timeout = 30000 * laddrs.connection_attempt++;
     timeout = timeout > 180000 ? 180000 : timeout;
     laddrs.pinger = setTimeout("laddrs.PingChannel();", timeout);
     laddrs.socket = channel.open(handler);
