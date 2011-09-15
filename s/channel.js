@@ -13,7 +13,7 @@ laddrs.color_options = [
   '#00c', '#90c', '#c30', '#330', '#066',
   '#00f', '#c39', '#933', '#663', '#099',
 ];
-laddrs.pinger = false;
+laddrs.pinger = null;
 laddrs.connection_attempt = 1;
 laddrs.reconnect_delay = 5000;
 laddrs.reconnecting = false;
@@ -104,6 +104,7 @@ laddrs.OpenChannel = function() {
     };
     var timeout = 30000 * laddrs.connection_attempt++;
     timeout = timeout > 180000 ? 180000 : timeout;
+    clearTimeout(laddrs.pinger);
     laddrs.pinger = setTimeout("laddrs.PingChannel();", timeout);
     laddrs.socket = channel.open(handler);
   }
@@ -240,6 +241,7 @@ laddrs.EnableSendChatBox = function(bool) {
 
 laddrs.ChannelOpened = function() {
   laddrs.reconnecting = false;
+  clearTimeout(laddrs.pinger);
   laddrs.pinger = setTimeout("laddrs.PingChannel();", 120000);
   laddrs.EnableSendChatBox(true);
   if (laddrs.first_open) {
@@ -347,6 +349,7 @@ laddrs.PingChannel = function(wait, disablesendchatbox) {
     }
     laddrs.alive = false;
     laddrs.Action(null, "ping", null);
+    clearTimeout(laddrs.pinger);
     laddrs.pinger = setTimeout("laddrs.PingChannel();", use_wait);
   }
   else {
