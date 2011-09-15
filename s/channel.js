@@ -15,7 +15,6 @@ laddrs.color_options = [
 ];
 laddrs.pinger = false;
 laddrs.connection_attempt = 1;
-laddrs.connection_timeout = 30000;
 laddrs.reconnect_delay = 5000;
 laddrs.reconnecting = false;
 laddrs.socket = {
@@ -103,9 +102,9 @@ laddrs.OpenChannel = function() {
       'onerror': laddrs.ChannelErrored,
       'onclose': laddrs.ChannelClosed,
     };
-    laddrs.connection_timeout *= laddrs.connection_attempt++;
-    laddrs.connection_timeout = laddrs.connection_timeout > 180000 ? 180000 : laddrs.connection_timeout;
-    laddrs.pinger = setTimeout("laddrs.PingChannel();", laddrs.connection_timeout);
+    var timeout = 30000 *= laddrs.connection_attempt++;
+    timeout = timeout > 180000 ? 180000 : timeout;
+    laddrs.pinger = setTimeout("laddrs.PingChannel();", timeout);
     laddrs.socket = channel.open(handler);
   }
 }
@@ -260,7 +259,6 @@ laddrs.ChannelOpened = function() {
   }
 
   laddrs.connection_attempt = 1;
-  laddrs.connection_timeout = 30000;
   laddrs.reconnect_delay = 5000;
 
   // fetch chat history
