@@ -4,8 +4,6 @@ import re
 import time
 import urllib
 
-from django.utils import simplejson
-
 from google.appengine.api import channel
 from google.appengine.api import users
 from google.appengine.ext import db
@@ -15,6 +13,8 @@ from google.appengine.ext.webapp.util import run_wsgi_app
 
 from laddrslib import util
 from laddrslib.models import SC2Ladder, SC2Player, SC2Match, ChatChannel
+
+from django.utils import simplejson
 
 class MainPage(webapp.RequestHandler):
   def get(self, ladder_name, action):

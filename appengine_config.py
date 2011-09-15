@@ -1,3 +1,4 @@
+import logging
 import os
 
 os.environ['DJANGO_SETTINGS_MODULE'] = 'settings'
@@ -5,7 +6,7 @@ from google.appengine.dist import use_library
 try:
   use_library('django', '1.2')
 except Exception, e:
-  logging.exception("Fatal exception. Trying to force an instance restart.")
+  logging.exception("Fatal exception. Will try to force an instance restart.")
   raise SystemExit(1)
 
 
