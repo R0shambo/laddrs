@@ -16,6 +16,7 @@ else {
 laddrs.ladder_name = '';
 laddrs.user_id = '';
 laddrs.token = '';
+laddrs.token_refresh = false;
 laddrs.throbber = '';
 laddrs.last_chat_msg = 0;
 laddrs.first_open = true;
@@ -66,7 +67,7 @@ laddrs.GetTokenAndOpenChannel = function() {
       }
     }
   }
-  if (!laddrs.first_open) {
+  if (laddrs.token) {
     var newdiv = document.createElement("div");
     var now = new Date();
     newdiv.className = "system";
@@ -77,7 +78,8 @@ laddrs.GetTokenAndOpenChannel = function() {
     cb.scrollTop = cb.scrollHeight;
   }
   laddrs.pinger = setTimeout("laddrs.PingChannel();", 30000);
-  laddrs.Action(xhr, "get-token");
+  laddrs.Action(xhr, "get-token", { refresh: laddrs.token_refresh });
+  laddrs.token_refresh = false;
 }
 
 // Step 3 - Open channel using shiny new token.
@@ -175,6 +177,10 @@ laddrs.ChannelMessaged = function(m) {
     console.log("Fetching chat history...");
     laddrs.Action(xhr, "get-chat-history", params);
   }
+  if (msg.ping_back) {
+    console.log("Server requested a ping");
+    laddrs.PingChannel(30000, false, true);
+  }
 }
 
 // Step 6 - Append those messages to the chatbox.
@@ -251,7 +257,8 @@ laddrs.GetLadderUpdate = function() {
 }
 
 // Step 9 - Repeatedly ping the channel to make sure we're still alive.
-laddrs.PingChannel = function(wait, disablesendchatbox) {
+laddrs.PingChannel = function(wait, disablesendchatbox, serversideping) {
+  clearTimeout(laddrs.pinger);
   laddrs.pingwait = wait || laddrs.pingwait;
   if (laddrs.alive) {
     if (!disablesendchatbox) {
@@ -259,7 +266,7 @@ laddrs.PingChannel = function(wait, disablesendchatbox) {
     }
     laddrs.alive = false;
     console.debug("Pinging channel...");
-    laddrs.Action(null, "ping", null);
+    laddrs.Action(null, "ping", serversideping ? { ssp: true } : false);
   }
   else {
     console.error("Channel socket %o is no longer alive", laddrs.socket);
@@ -281,6 +288,7 @@ laddrs.PingChannel = function(wait, disablesendchatbox) {
       laddrs.ChannelClosed();
     }
   }
+  // This is called redundantly, just to be safe.
   clearTimeout(laddrs.pinger);
   laddrs.pinger = setTimeout("laddrs.PingChannel();", laddrs.pingwait);
   laddrs.pingwait = laddrs.pingwait > 90000 ? 120000 : (laddrs.pingwait + 30000);
@@ -309,6 +317,9 @@ laddrs.SendChatMsg = function(el) {
     laddrs.pinger = setTimeout("laddrs.PingChannel();", 30000);
     laddrs.Action(null, "send-chat", params);
     input.value = "";
+    if (_gaq) {
+      _gaq.push(['_trackPageview', '/goal/chat/' + laddrs.ladder_name]);
+    }
   }
 }
 
@@ -320,6 +331,7 @@ laddrs.ChannelErrored = function(e) {
   if (e.code == 401) {
     console.warn("Channel token expired. Time to refresh the connection.");
     laddrs.token = '';
+    laddrs.token_refresh = true;
   }
   else {
     var newdiv = document.createElement("div");
@@ -345,7 +357,7 @@ laddrs.ChannelClosed = function() {
   laddrs.EnableSendChatBox(false);
   if (laddrs.socket.readyState == 3) {
     console.log("channel %o closed.", laddrs.socket)
-    if (!laddrs.first_open && laddrs.token) {
+    if (laddrs.token) {
       var newdiv = document.createElement("div");
       var now = new Date();
       newdiv.className = "system";

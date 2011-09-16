@@ -24,7 +24,7 @@
    </tr>{%endfor%}
   </table>
   {%if matches|length > 1%}
-       <a style="margin-top:3px;padding-right:10px;float:right;text-decoration:none;color:black;font-weight:bold" href="/download/{{ladder.get_ladder_key|urlencode}}.zip">
+       <a style="margin-top:3px;padding-right:10px;float:right;text-decoration:none;color:black;font-weight:bold" onclick="_gaq.push(['_trackPageview', '/download/{{ladder.get_ladder_key|urlencode}}.zip']);" href="/download/{{ladder.get_ladder_key|urlencode}}.zip">
     Download&nbsp;All&nbsp;{{matches|length}}&nbsp;Replays&nbsp;<img style="vertical-align:middle" src="/s/zip-icon.png" height="45" width="45" border="0" alt="Download Zip of All Replays" title="Download Zip of All Replays" /></a>
   {%endif%}
 

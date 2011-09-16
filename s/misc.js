@@ -41,7 +41,14 @@ function togglePresence(force) {
 }
 
 function toggleTimestamps() {
+  var cb = document.getElementById("chatbox")
+  var scrolldown = true;
+  if (cb.scrollTop < cb.scrollHeight - cb.offsetHeight) {
+    scrolldown = false;
+  }
   var style = document.getElementById("timestamp-style");
   style.disabled = !style.disabled;
+  if (scrolldown) {
+    cb.scrollTop = cb.scrollHeight;
+  }
 }
-

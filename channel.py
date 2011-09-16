@@ -56,9 +56,10 @@ class MainPage(webapp.RequestHandler):
       return
 
     if action == 'ping':
-      self.response.out.write(ChatChannel.ping(ladder, user))
+      self.response.out.write(ChatChannel.ping(ladder, user, self.request.get('ssp')))
     elif action == 'get-token':
-      self.response.out.write(ChatChannel.get_token(ladder, user))
+      self.response.out.write(ChatChannel.get_token(ladder, user_player,
+          self.request.get('refresh')))
     elif action == 'get-chat-history':
       self.response.out.write(ChatChannel.get_chat_history(ladder, user_player,
           self.request.get('last_chat_msg')))

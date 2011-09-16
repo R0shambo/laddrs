@@ -42,6 +42,8 @@ MC_FAQS="faqs_v2"
 MC_CID="clientid_v1_%s" % os.getenv('CURRENT_VERSION_ID')
 MC_CHANNELS="channels_v1"
 MC_CHATS="chats_v1"
+MC_TR="token-refresh_v1"
+MC_PING="pings_v1"
 
 MAX_UNFROZEN_MATCHES=500
 
@@ -829,9 +831,9 @@ class SC2Ladder(db.Model):
 
     zip = zipfile.ZipFile(zipio, mode="w", compression=zipfile.ZIP_DEFLATED)
     for match in matches:
-      logging.info("compressing %s.SC2Replay", match.name)
+      logging.info("compressing %s.SC2Replay", slugify(match.name))
       dt = match.match_date_local
-      info = zipfile.ZipInfo(filename="%s.SC2Replay" % slugify(match.name),
+      info = zipfile.ZipInfo(filename=str("%s.SC2Replay" % slugify(match.name)),
           date_time=(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second))
       zip.writestr(info, match.replay)
     zip.close()
@@ -1120,14 +1122,16 @@ class ChatChannel(db.Model):
     pass
 
   @classmethod
-  def get_token(cls, ladder, user):
-    client_id = "%s_%s" % (ladder.get_ladder_key(), user.user_id())
+  def get_token(cls, ladder, user_player, refresh=False):
+    client_id = "%s_%s" % (ladder.get_ladder_key(), user_player.user_id)
     token = mc.get(client_id, namespace=MC_CID)
     if token:
       return token
+    logging.info("creating channel token for %s (%s)", client_id, user_player.name)
     token = channel.create_channel(client_id)
     # expire before two hours which is the max age of a token.
     mc.set(client_id, token, namespace=MC_CID, time=7100)
+    mc.set(client_id, refresh, namespace=MC_TR, time=MC_EXP_SHORT)
     return token
 
   @classmethod
@@ -1199,6 +1203,16 @@ class ChatChannel(db.Model):
       return
 
     if client_id in channels:
+      # check if disconnected channel just initiated a token refresh
+      if mc.get(client_id, namespace=MC_TR):
+        # they did! send a server-side ping and wait 10 seconds for a response.
+        cls.push_ping(ladder, client_id)
+        for i in xrange(10):
+          time.sleep(1.0)
+          if mc.get(client_id, namespace=MC_PING):
+            logging.info("server-side ping received. ignoring disconnection of %s", client_id)
+            return
+      # if we got this far, it's probably a real disconnection.
       db.delete(db.Key.from_path('SC2Ladder', ladder_name, str(cls), client_id))
 
     # no player if player just quit ladder.
@@ -1319,10 +1333,17 @@ class ChatChannel(db.Model):
     return True
 
   @classmethod
-  def ping(cls, ladder, user):
+  def push_ping(cls, ladder, client_id,):
+    cls.publish(ladder, {'ping_back': True}, only=client_id)
+
+  @classmethod
+  def ping(cls, ladder, user, server_side=False):
     client_id = "%s_%s" % (ladder.get_ladder_key(), user.user_id())
     channels = cls.get_channels(ladder)
     if client_id in channels:
+      if server_side:
+        logging.info("received server-side ping response from %s", client_id)
+        mc.set(client_id, namespace=MC_PING, time=MC_EXP_SHORT)
       logging.info("pinging channel %s", client_id)
       channel.send_message(client_id, PING_MSG)
       return "OK"

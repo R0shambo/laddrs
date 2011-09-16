@@ -54,7 +54,7 @@ class MainPage(webapp.RequestHandler):
         if player:
            self.redirect('/ladder/%s' % ladder.get_ladder_key())
            util.set_butter("You have joined %s." % ladder.name)
-           util.track_pageview('/goal/ladder_join.html')
+           util.track_pageview('/goal/ladder_join/%s' % ladder.get_ladder_key())
            return
         else:
           errormsg = "Umm... not quite sure what has gone wrong."
