@@ -49,9 +49,11 @@ GLICKO_RATING=1500
 GLICKO_RD=350
 GLICKO_VOL=0.06
 
-GAMETYPE_RE = re.compile("\dv\d")
+GAMETYPE_RE = re.compile(r"\dv\d")
 PUNCTUATION_RE = re.compile("[%s]" % re.escape(string.punctuation))
 REGION_RE = re.compile("^(us|eu|kr|tw|sea|ru|la)$")
+HREF_RE = re.compile(r"<a href=")
+HREF_REPLACE = "<a target='_blank' href="
 
 sc2ranks_api = Sc2Ranks("laddrs.appspot.com")
 sc2ranks_throttle = time.time()
@@ -1132,7 +1134,7 @@ class ChatChannel(db.Model):
   def get_channels(cls, ladder):
     for i in xrange(3):
       channels = mc.gets(ladder.get_ladder_key(), namespace=MC_CHANNELS)
-      if not channels:
+      if channels == None:
         channels = {}
         for c in ChatChannel.gql("WHERE ANCESTOR IS :1 AND connected > :2",
             ladder, datetime.datetime.utcnow() - datetime.timedelta(hours=2)):
@@ -1170,12 +1172,12 @@ class ChatChannel(db.Model):
       logging.info("current channels: %s", str(channels))
       # joining player already in the channel. do nothing.
       if ch.key().name() in channels:
+        cls.push_chat_history(ladder, client_id)
         return
       channels[ch.key().name()] = player.name
       if mc.cas(ladder_name, channels, namespace=MC_CHANNELS, time=7200):
-        # may want to skip client_id if we can figure out the proper timing.
-        cls.send_chat(ladder, player, sysmsg="joined ladder chat.",
-            channels=channels)
+        cls.send_chat(ladder, player, presence=True)
+        cls.push_chat_history(ladder, client_id)
         return
       channels = cls.get_channels(ladder)
     raise ChatChannel.FailedStoringClientConnection
@@ -1207,7 +1209,7 @@ class ChatChannel(db.Model):
       try:
         del channels[client_id]
         if mc.cas(ladder_name, channels, namespace=MC_CHANNELS, time=7200):
-          cls.send_chat(ladder, player, sysmsg="left ladder chat.", channels=channels)
+          cls.send_chat(ladder, player, sysmsg="left ladder chat.", presence=True)
           return
       except KeyError:
         return
@@ -1215,7 +1217,15 @@ class ChatChannel(db.Model):
     raise ChatChannel.FailedDeletingClientConnection
 
   @classmethod
-  def get_chat_history(cls, ladder, last_chat_msg):
+  def push_chat_history(cls, ladder, client_id,):
+    cls.publish(ladder, {'get_chat_history': True}, only=client_id)
+
+  @classmethod
+  def get_chat_history(cls, ladder, user_player, last_chat_msg):
+    client_id = "%s_%s" % (ladder.get_ladder_key(), user_player.user_id)
+    cls.send_chat(ladder, user_player, sysmsg="joined ladder chat.",
+        presence=True, skip=client_id)
+
     chat_history = mc.get(ladder.get_ladder_key(), namespace=MC_CHATS)
 
     if not chat_history:
@@ -1238,7 +1248,7 @@ class ChatChannel(db.Model):
 
   @classmethod
   def send_chat(cls, ladder, user_player, msg=None, sysmsg=None, ladder_updated=False,
-      channels=None, skip=''):
+      presence=False, skip=None):
     try:
       player_name = user_player.name
     except AttributeError:
@@ -1248,18 +1258,24 @@ class ChatChannel(db.Model):
       'n': force_escape(player_name),
     }
 
+    json_obj = {}
+
     if sysmsg:
       chat['s'] = force_escape(sysmsg)
+      json_obj['chat'] = [chat]
+
     if msg:
-      chat['m'] = urlize(force_escape(msg[:4096]))
+      # only allow chat messages from users actually connected to chat.
+      client_id = "%s_%s" % (ladder.get_ladder_key(), user_player.user_id)
+      channels = cls.get_channels(ladder)
+      if not client_id in channels:
+        raise ChatChannel.FailedSendChat
+      chat['m'] = HREF_RE.sub(HREF_REPLACE, urlize(force_escape(msg[:4096])))
+      json_obj['chat'] = [chat]
 
-    json_obj = {
-      'chat': [chat],
-    }
+    if presence:
+      json_obj['presence'] = sorted(cls.get_channels(ladder).itervalues(), key=unicode.lower)
 
-    logging.info("presence: %s", str(channels))
-    if channels:
-      json_obj['presence'] = sorted(channels.itervalues(), key=unicode.lower)
     if ladder_updated:
       json_obj['ladder_updated'] = True
 
@@ -1280,7 +1296,7 @@ class ChatChannel(db.Model):
     raise ChatChannel.FailedSendChat
 
   @classmethod
-  def publish(cls, ladder, json_obj, skip):
+  def publish(cls, ladder, json_obj, skip=None, only=None):
     json_msg = simplejson.dumps(json_obj)
     channels = cls.get_channels(ladder)
     try:
@@ -1295,7 +1311,7 @@ class ChatChannel(db.Model):
             channel.send_message(ch, skip_msg)
           else:
             logging.info("skipping message to %s", ch)
-        else:
+        elif not only or ch == only:
           logging.info("sending message to %s: %s", ch, json_msg)
           channel.send_message(ch, json_msg)
     except AttributeError:
@@ -1305,9 +1321,13 @@ class ChatChannel(db.Model):
   @classmethod
   def ping(cls, ladder, user):
     client_id = "%s_%s" % (ladder.get_ladder_key(), user.user_id())
-    logging.info("pinging %s", client_id)
-    channel.send_message(client_id, PING_MSG)
-    return "OK"
+    channels = cls.get_channels(ladder)
+    if client_id in channels:
+      logging.info("pinging channel %s", client_id)
+      channel.send_message(client_id, PING_MSG)
+      return "OK"
+    logging.info("not pinging disconnected channel %s", client_id)
+    return "NOK"
 
 
 class FaqEntry(db.Model):

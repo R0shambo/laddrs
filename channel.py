@@ -60,7 +60,7 @@ class MainPage(webapp.RequestHandler):
     elif action == 'get-token':
       self.response.out.write(ChatChannel.get_token(ladder, user))
     elif action == 'get-chat-history':
-      self.response.out.write(ChatChannel.get_chat_history(ladder,
+      self.response.out.write(ChatChannel.get_chat_history(ladder, user_player,
           self.request.get('last_chat_msg')))
     elif action == 'send-chat':
       self.response.out.write(ChatChannel.send_chat(ladder, user_player, self.request.get('m')))

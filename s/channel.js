@@ -1,5 +1,18 @@
 laddrs = {};
 
+// Logging is good. So let's see if we can actually log stuff.
+if (window.console) {
+  console.log("Yay! console.log() exists!");
+}
+else {
+  // This is needed or IE will fail. I fucking hate IE.
+  window.console = {};
+  window.console.debug = function() {};
+  window.console.log = function() {};
+  window.console.warn = function() {};
+  window.console.error = function() {};
+}
+
 laddrs.ladder_name = '';
 laddrs.user_id = '';
 laddrs.token = '';
@@ -14,58 +27,32 @@ laddrs.color_options = [
   '#00f', '#c39', '#933', '#663', '#099',
 ];
 laddrs.pinger = null;
-laddrs.connection_attempt = 1;
+laddrs.reconnect = false;
 laddrs.reconnect_delay = 5000;
-laddrs.reconnecting = false;
 laddrs.socket = {
   readyState: 3,
 };
 laddrs.sendchatenabled = false;
+laddrs.pingwait = 30000;
 
-laddrs.pickColor = function() {
-  return laddrs.color_options[laddrs.colors_picked++ % laddrs.color_options.length]
-};
+// Successful Ladder Chat requires Twelve Steps. Here they are:
 
-laddrs.XHR = function() {
-  return new XMLHttpRequest();
-}
-
-laddrs.Action = function(xhr, action, params) {
-  if (!params) {
-    params = {};
-  }
-  params.user_id = laddrs.user_id;
-  if (!xhr) {
-    xhr = laddrs.XHR();
-  }
-  var url = "/channel/" + laddrs.ladder_name + "/" + action;
-  laddrs.POST(xhr, url, params)
-}
-
-laddrs.POST = function(xhr, url, map) {
-  var params = new Array();
-  for (var i in map) {
-    params.push(encodeURIComponent(i) + "=" + encodeURIComponent(map[i]));
-  }
-  xhr.open("POST", url, true);
-  xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-  xhr.send(params.join("&"));
-}
-
+// Step 1 - Start channel for the first time.
 laddrs.StartChannel = function(ladder_name, user_id) {
   laddrs.ladder_name = ladder_name;
   laddrs.user_id = user_id;
   laddrs.GetTokenAndOpenChannel();
 }
 
+// Step 2 - Get token for opening the channel.
 laddrs.GetTokenAndOpenChannel = function() {
+  console.debug("GetTokenAndOpenChannel called.");
   if (laddrs.pinger) {
     clearTimeout(laddrs.pinger);
   }
   var xhr = laddrs.XHR();
   xhr.onreadystatechange=function() {
     if (xhr.readyState==4) {
-      laddrs.reconnecting = false;
       if (xhr.status==200) {
         laddrs.token = xhr.responseText;
         laddrs.OpenChannel();
@@ -76,7 +63,6 @@ laddrs.GetTokenAndOpenChannel = function() {
           description: "Chat connection failed",
         }
         laddrs.ChannelErrored(e);
-        laddrs.ChannelClosed();
       }
     }
   }
@@ -90,11 +76,14 @@ laddrs.GetTokenAndOpenChannel = function() {
     cb.appendChild(newdiv);
     cb.scrollTop = cb.scrollHeight;
   }
+  laddrs.pinger = setTimeout("laddrs.PingChannel();", 30000);
   laddrs.Action(xhr, "get-token");
 }
 
+// Step 3 - Open channel using shiny new token.
 laddrs.OpenChannel = function() {
-  if (laddrs.socket.readyState > 1) {
+  console.debug("OpenChannel called.");
+  if (laddrs.socket.readyState == 3) {
     var channel = new goog.appengine.Channel(laddrs.token);
     var handler = {
       'onopen': laddrs.ChannelOpened,
@@ -102,147 +91,23 @@ laddrs.OpenChannel = function() {
       'onerror': laddrs.ChannelErrored,
       'onclose': laddrs.ChannelClosed,
     };
-    var timeout = 30000 * laddrs.connection_attempt++;
-    timeout = timeout > 180000 ? 180000 : timeout;
     clearTimeout(laddrs.pinger);
-    laddrs.pinger = setTimeout("laddrs.PingChannel();", timeout);
+    laddrs.pinger = setTimeout("laddrs.PingChannel(30000);", 30000);
     laddrs.socket = channel.open(handler);
   }
-}
-
-laddrs.SendChatMsg = function(el) {
-  var input = document.getElementById("sendchatmsg");
-  var msg = input.value;
-  if (msg) {
-    params = {
-      m: msg,
-    }
-    // Send the chat message over XHR
-    var xhr = laddrs.XHR();
-    xhr.onreadystatechange=function() {
-      if (xhr.readyState==4 && xhr.status!=200) {
-        var e = {
-          code: xhr.status,
-          description: "Error sending chat message",
-        };
-        laddrs.ChannelErrored(e);
-      }
-    }
-    laddrs.Action(null, "send-chat", params);
-    input.value = "";
-  }
-}
-
-laddrs.GetLadderUpdate = function() {
-  var xhr = laddrs.XHR();
-  xhr.onreadystatechange=function() {
-    if (xhr.readyState==4 && xhr.status==200) {
-      var msg = {};
-      msg.data = xhr.responseText
-      laddrs.ChannelMessaged(msg)
-    }
-  }
-  laddrs.Action(xhr, "get-ladder-data", null);
-}
-
-laddrs.GetTime = function(t) {
-  return (t.getHours() < 10 ? "0" + t.getHours() : t.getHours()) + ":" + (t.getMinutes() < 10 ? "0" + t.getMinutes() : t.getMinutes());
-}
-
-laddrs.AddChatMessages = function(chat) {
-  var cb = document.getElementById("chatbox")
-  var scrolldown = true;
-  if (cb.scrollTop < cb.scrollHeight - cb.offsetHeight) {
-    scrolldown = false;
-  }
-  for (var i in chat) {
-    var c = chat[i];
-    var div = document.createElement("div");
-    var t = new Date(c.t * 1000);
-    if (!laddrs.colors[c.n]) {
-      laddrs.colors[c.n] = laddrs.pickColor();
-    }
-    div.title = t.toLocaleDateString() + " " + t.toLocaleTimeString();
-
-    if (c['s']) {
-      div.className = "system";
-      div.innerHTML = c.n + " " + c.s
-    }
-    else {
-      div.className = "message";
-      var ts = document.createElement("span");
-      ts.className = "ts";
-      ts.innerHTML = laddrs.GetTime(t) + " ";
-      var name = document.createElement("span");
-      name.className = "name";
-      name.style.color = laddrs.colors[c.n];
-      name.innerHTML = c.n + ": ";
-      var text = document.createElement("span");
-      text.className = "chatmsg";
-      text.innerHTML = c.m;
-      div.appendChild(ts);
-      div.appendChild(name);
-      div.appendChild(text);
-    }
-    cb.appendChild(div);
-    laddrs.last_chat_msg = c.t;
-    if (!laddrs.throbber) {
-      laddrs.ThrobChatHeader();
-    }
-    if (scrolldown) {
-      cb.scrollTop = cb.scrollHeight;
-    }
-  }
-}
-
-laddrs.SetPresence = function(presence) {
-  var div = document.getElementById("chat-presence");
-  div.innerHTML = "";
-  for (var i in presence) {
-    var name = presence[i];
-    var player = document.createElement("div")
-    if (!laddrs.colors[name]) {
-      laddrs.colors[name] = laddrs.pickColor();
-    }
-    player.style.color = laddrs.colors[name];
-    player.innerHTML = name;
-    div.appendChild(player);
-  }
-}
-
-laddrs.ThrobChatHeader = function() {
-  var ch = document.getElementById("chat-header");
-  var bg = ch.className;
-  if (ch.className == "") {
-    ch.className = "throb";
-  }
   else {
-    ch.className = "";
-  }
-  laddrs.throbber = setTimeout("laddrs.ThrobChatHeader();", 1000);
-}
-laddrs.StopThrobbing = function() {
-  clearTimeout(laddrs.throbber);
-  document.getElementById("chat-header").className="";
-}
-
-laddrs.EnableSendChatBox = function(bool) {
-  if (laddrs.sendchatboxenabled != bool) {
-    laddrs.sendchatboxenabled = bool;
-    var sendchatbox = document.getElementById("sendchatbox");
-    sendchatbox.disabled = !bool;
-    sendinputs = sendchatbox.getElementsByTagName("input");
-    for (var i in sendinputs) {
-      var input = sendinputs[i];
-      input.disabled = !bool;
-    }
+    console.log("OpenChannel called, but socket %o is already active", laddrs.socket);
+    clearTimeout(laddrs.pinger);
+    laddrs.pinger = setTimeout("laddrs.PingChannel(30000);", 30000);
   }
 }
 
+// Step 4 - The channel is opened! Rejoice and give thanks!
 laddrs.ChannelOpened = function() {
-  laddrs.reconnecting = false;
+  console.debug("Channel Opened!");
   clearTimeout(laddrs.pinger);
-  laddrs.pinger = setTimeout("laddrs.PingChannel();", 120000);
+  clearTimeout(laddrs.reconnect);
+  laddrs.pinger = setTimeout("laddrs.PingChannel(30000);", 30000);
   laddrs.EnableSendChatBox(true);
   if (laddrs.first_open) {
     document.getElementById("chat-container").style.display = 'block';
@@ -259,43 +124,10 @@ laddrs.ChannelOpened = function() {
     cb.appendChild(newdiv);
     cb.scrollTop = cb.scrollHeight;
   }
-
-  laddrs.connection_attempt = 1;
   laddrs.reconnect_delay = 5000;
-
-  // fetch chat history
-  var params = {
-    last_chat_msg: laddrs.last_chat_msg,
-  };
-  var xhr = laddrs.XHR();
-  xhr.onreadystatechange=function() {
-    if (xhr.readyState==4 && xhr.status==200) {
-      var msg = {};
-      msg.data = xhr.responseText
-      laddrs.ChannelMessaged(msg)
-    }
-  }
-  laddrs.Action(xhr, "get-chat-history", params);
-}
-laddrs.ChannelErrored = function(e) {
-  var newdiv = document.createElement("div");
-  var now = new Date();
-  newdiv.className = "system";
-  newdiv.appendChild(document.createTextNode("Error occured: " + e.code + " " + e.description));
-  newdiv.title = now.toLocaleDateString() + " " + now.toLocaleTimeString();
-  cb = document.getElementById("chatbox")
-  cb.appendChild(newdiv);
-  cb.scrollTop = cb.scrollHeight;
-  if (laddrs.socket.readyState == 1) {
-    clearTimeout(laddrs.pinger);
-    laddrs.alive = true;
-    laddrs.PingChannel(20000, true);
-  }
-  else {
-    laddrs.ChannelClosed();
-  }
 }
 
+// Step 5 - Handle all the fun messages received on the channel.
 laddrs.ChannelMessaged = function(m) {
   var msg = JSON.parse(m.data);
   laddrs.alive = true;
@@ -317,44 +149,122 @@ laddrs.ChannelMessaged = function(m) {
     var d = document.getElementById("match_history");
     d.innerHTML = msg.match_history;
   }
+  if (msg.get_chat_history) {
+    // fetch chat history
+    var params = {
+      last_chat_msg: laddrs.last_chat_msg,
+    };
+    var xhr = laddrs.XHR();
+    xhr.onreadystatechange=function() {
+      if (xhr.readyState==4) {
+        if (xhr.status==200) {
+          var msg = {};
+          msg.data = xhr.responseText
+          laddrs.ChannelMessaged(msg)
+          console.log("History updated.");
+        }
+        else {
+          var e = {
+            code: xhr.status,
+            description: "Error getting chat history",
+          };
+          laddrs.ChannelErrored(e);
+        }
+      }
+    }
+    console.log("Fetching chat history...");
+    laddrs.Action(xhr, "get-chat-history", params);
+  }
 }
 
-laddrs.ChannelClosed = function() {
-  if (!laddrs.reconnecting) {
-    laddrs.reconnecting = true;
-    laddrs.EnableSendChatBox(false);
-    if (!laddrs.first_open) {
-      var newdiv = document.createElement("div");
-      var now = new Date();
-      newdiv.className = "system";
-      newdiv.appendChild(document.createTextNode("Chat disconnected. Will retry in " + laddrs.reconnect_delay / 1000 + " seconds."));
-      newdiv.title = now.toLocaleDateString() + " " + now.toLocaleTimeString();
-      cb = document.getElementById("chatbox")
-      cb.appendChild(newdiv);
+// Step 6 - Append those messages to the chatbox.
+laddrs.AddChatMessages = function(chat) {
+  var cb = document.getElementById("chatbox")
+  var scrolldown = true;
+  if (cb.scrollTop < cb.scrollHeight - cb.offsetHeight) {
+    scrolldown = false;
+  }
+  for (var i in chat) {
+    var c = chat[i];
+    var div = document.createElement("div");
+    var t = new Date(c.t * 1000);
+    if (!laddrs.colors[c.n]) {
+      laddrs.colors[c.n] = laddrs.PickColor();
+    }
+    div.title = t.toLocaleDateString() + " " + t.toLocaleTimeString();
+
+    if (c['s']) {
+      div.className = "system";
+      div.innerHTML = c.n + " " + c.s
+    }
+    else if (c['m']) {
+      div.className = "message";
+      var ts = document.createElement("span");
+      ts.className = "ts";
+      ts.innerHTML = laddrs.GetTime(t) + " ";
+      var name = document.createElement("span");
+      name.className = "name";
+      name.style.color = laddrs.colors[c.n];
+      name.innerHTML = c.n + ": ";
+      var text = document.createElement("span");
+      text.className = "chatmsg";
+      text.innerHTML = c.m;
+      div.appendChild(ts);
+      div.appendChild(name);
+      div.appendChild(text);
+    }
+    cb.appendChild(div);
+    laddrs.last_chat_msg = c.t;
+    if (scrolldown) {
       cb.scrollTop = cb.scrollHeight;
     }
-    setTimeout('laddrs.GetTokenAndOpenChannel();', laddrs.reconnect_delay);
-    laddrs.reconnect_delay *= 2;
-    if (laddrs.reconnect_delay > 120000) {
-      laddrs.reconnect_delay = 120000;
-    }
   }
 }
 
+// Step 7 - Update presence information when people join or leave.
+laddrs.SetPresence = function(presence) {
+  var div = document.getElementById("chat-presence");
+  div.innerHTML = "";
+  for (var i in presence) {
+    var name = presence[i];
+    var player = document.createElement("div")
+    if (!laddrs.colors[name]) {
+      laddrs.colors[name] = laddrs.PickColor();
+    }
+    player.style.color = laddrs.colors[name];
+    player.innerHTML = name;
+    div.appendChild(player);
+  }
+}
+
+// Step 8 - Update ladder info when someone uploads a new match.
+laddrs.GetLadderUpdate = function() {
+  var xhr = laddrs.XHR();
+  xhr.onreadystatechange=function() {
+    if (xhr.readyState==4 && xhr.status==200) {
+      var msg = {};
+      msg.data = xhr.responseText
+      laddrs.ChannelMessaged(msg)
+    }
+  }
+  laddrs.Action(xhr, "get-ladder-data", null);
+}
+
+// Step 9 - Repeatedly ping the channel to make sure we're still alive.
 laddrs.PingChannel = function(wait, disablesendchatbox) {
-  var use_wait = wait ? wait : 120000;
+  laddrs.pingwait = wait || laddrs.pingwait;
   if (laddrs.alive) {
-    if (disablesendchatbox) {
-      laddrs.EnableSendChatBox(false);
+    if (!disablesendchatbox) {
+      laddrs.EnableSendChatBox(true);
     }
     laddrs.alive = false;
+    console.debug("Pinging channel...");
     laddrs.Action(null, "ping", null);
-    clearTimeout(laddrs.pinger);
-    laddrs.pinger = setTimeout("laddrs.PingChannel();", use_wait);
   }
   else {
+    console.error("Channel socket %o is no longer alive", laddrs.socket);
     if (laddrs.socket.readyState < 2) {
-      if (!laddrs.first_open) {
+      if (!laddrs.first_open && laddrs.token) {
         var newdiv = document.createElement("div");
         var now = new Date();
         newdiv.className = "system";
@@ -364,7 +274,172 @@ laddrs.PingChannel = function(wait, disablesendchatbox) {
         cb.appendChild(newdiv);
         cb.scrollTop = cb.scrollHeight;
       }
+      console.warn("attempting to force close socket %o", laddrs.socket);
       laddrs.socket.close();
+    }
+    else {
+      laddrs.ChannelClosed();
+    }
+  }
+  clearTimeout(laddrs.pinger);
+  laddrs.pinger = setTimeout("laddrs.PingChannel();", laddrs.pingwait);
+  laddrs.pingwait = laddrs.pingwait > 90000 ? 120000 : (laddrs.pingwait + 30000);
+}
+
+// Step 10 - Send new chats! This is what it's all about!
+laddrs.SendChatMsg = function(el) {
+  var input = document.getElementById("sendchatmsg");
+  var msg = input.value;
+  if (msg) {
+    params = {
+      m: msg,
+    }
+    // Send the chat message over XHR
+    var xhr = laddrs.XHR();
+    xhr.onreadystatechange=function() {
+      if (xhr.readyState==4 && xhr.status!=200) {
+        var e = {
+          code: xhr.status,
+          description: "Error sending chat message",
+        };
+        laddrs.ChannelErrored(e);
+      }
+    }
+    clearTimeout(laddrs.pinger);
+    laddrs.pinger = setTimeout("laddrs.PingChannel();", 30000);
+    laddrs.Action(null, "send-chat", params);
+    input.value = "";
+  }
+}
+
+// Step 11 - Handle Errors!
+laddrs.ChannelErrored = function(e) {
+  console.error("channel %o errored %o", laddrs.socket, e);
+  laddrs.EnableSendChatBox(false);
+  // Code 401 is used when channel token expires.
+  if (e.code == 401) {
+    console.warn("Channel token expired. Time to refresh the connection.");
+    laddrs.token = '';
+  }
+  else {
+    var newdiv = document.createElement("div");
+    var now = new Date();
+    newdiv.className = "system";
+    newdiv.appendChild(document.createTextNode("Error occured: " + e.code + " " + e.description));
+    newdiv.title = now.toLocaleDateString() + " " + now.toLocaleTimeString();
+    cb = document.getElementById("chatbox")
+    cb.appendChild(newdiv);
+    cb.scrollTop = cb.scrollHeight;
+  }
+  if (laddrs.socket.readyState == 3) {
+    laddrs.ChannelClosed();
+  }
+  else {
+    clearTimeout(laddrs.pinger);
+    laddrs.pinger = setTimeout("laddrs.PingChannel(20000, true);", 10000);
+  }
+}
+
+// Step 12 - Reconnect when the channel closes.
+laddrs.ChannelClosed = function() {
+  laddrs.EnableSendChatBox(false);
+  if (laddrs.socket.readyState == 3) {
+    console.log("channel %o closed.", laddrs.socket)
+    if (!laddrs.first_open && laddrs.token) {
+      var newdiv = document.createElement("div");
+      var now = new Date();
+      newdiv.className = "system";
+      newdiv.appendChild(document.createTextNode("Chat disconnected. Will retry in " + laddrs.reconnect_delay / 1000 + " seconds."));
+      newdiv.title = now.toLocaleDateString() + " " + now.toLocaleTimeString();
+      cb = document.getElementById("chatbox")
+      cb.appendChild(newdiv);
+      cb.scrollTop = cb.scrollHeight;
+    }
+    clearTimeout(laddrs.pinger);
+    clearTimeout(laddrs.reconnect);
+    laddrs.reconnect = setTimeout('laddrs.GetTokenAndOpenChannel();', laddrs.reconnect_delay);
+    if (laddrs.reconnect_delay > 60000) {
+      laddrs.reconnect_delay += 30000;
+    }
+    else {
+      laddrs.reconnect_delay *= 2;
+    }
+    //# max out at five minute retry
+    if (laddrs.reconnect_delay > 300000) {
+      laddrs.reconnect_delay = 300000;
+    }
+  }
+  else {
+    console.warn("ChannelClosed called but socket %o is not closed", laddrs.socket);      clearTimeout(laddrs.pinger);
+    laddrs.pinger = setTimeout("laddrs.PingChannel(10000);", 10000);
+  }
+}
+
+// XmlHttpRequests make it all happen
+laddrs.XHR = function() {
+  return new XMLHttpRequest();
+};
+
+laddrs.Action = function(xhr, action, params) {
+  if (!params) {
+    params = {};
+  }
+  params.user_id = laddrs.user_id;
+  if (!xhr) {
+    xhr = laddrs.XHR();
+  }
+  var url = "/channel/" + laddrs.ladder_name + "/" + action;
+  laddrs.POST(xhr, url, params)
+};
+
+laddrs.POST = function(xhr, url, map) {
+  var params = new Array();
+  for (var i in map) {
+    params.push(encodeURIComponent(i) + "=" + encodeURIComponent(map[i]));
+  }
+  xhr.open("POST", url, true);
+  xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+  xhr.send(params.join("&"));
+};
+
+// UI polish is important for people to enjoy your site.
+laddrs.PickColor = function() {
+  return laddrs.color_options[laddrs.colors_picked++ % laddrs.color_options.length]
+};
+
+laddrs.GetTime = function(t) {
+  return (t.getHours() < 10 ? "0" + t.getHours() : t.getHours()) + ":" + (t.getMinutes() < 10 ? "0" + t.getMinutes() : t.getMinutes());
+};
+
+laddrs.ThrobChatHeader = function() {
+  var ch = document.getElementById("chat-header");
+  var bg = ch.className;
+  if (ch.className == "") {
+    ch.className = "throb";
+    clearTimeout(laddrs.throbber)
+    laddrs.throbber = setTimeout("laddrs.ThrobChatHeader();", 1000);
+  }
+  else {
+    ch.className = "";
+    clearTimeout(laddrs.throbber)
+    laddrs.throbber = setTimeout("laddrs.ThrobChatHeader();", 2000);
+  }
+};
+
+laddrs.StopThrobbing = function() {
+  clearTimeout(laddrs.throbber);
+  document.getElementById("chat-header").className="";
+};
+
+laddrs.EnableSendChatBox = function(bool) {
+  if (laddrs.sendchatboxenabled != bool) {
+    laddrs.sendchatboxenabled = bool;
+    var sendchatbox = document.getElementById("sendchatbox");
+    sendchatbox.disabled = !bool;
+    sendinputs = sendchatbox.getElementsByTagName("input");
+    for (var i in sendinputs) {
+      var input = sendinputs[i];
+      input.disabled = !bool;
     }
   }
 }
