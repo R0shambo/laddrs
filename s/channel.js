@@ -138,13 +138,13 @@ laddrs.ChannelMessaged = function(m) {
   var msg = JSON.parse(m.data);
   laddrs.alive = true;
   if (msg.chat) {
-    laddrs.AddChatMessages(msg.chat);
-    laddrs.ThrobChatHeader();
-    if (laddrs.toastSound &&
-        (!window.isActive || document.getElementById("chatbox").style.display == 'none'))
-    {
-      console.debug("chirp!");
-      laddrs.toastSound.play();
+    if (laddrs.AddChatMessages(msg.chat) &&
+        (!window.isActive || document.getElementById("chatbox").style.display == 'none')) {
+      laddrs.ThrobChatHeader();
+      if (laddrs.toastSound) {
+        console.debug("chirp!");
+        laddrs.toastSound.play();
+      }
     }
   }
   if (msg.presence) {
@@ -195,6 +195,7 @@ laddrs.ChannelMessaged = function(m) {
 
 // Step 6 - Append those messages to the chatbox.
 laddrs.AddChatMessages = function(chat) {
+  var addedMessage = false;
   var cb = document.getElementById("chatbox")
   var scrolldown = true;
   if (cb.scrollTop < cb.scrollHeight - cb.offsetHeight) {
@@ -229,12 +230,17 @@ laddrs.AddChatMessages = function(chat) {
       div.appendChild(name);
       div.appendChild(text);
     }
+    else {
+      continue;
+    }
+    addedMessage = true;
     cb.appendChild(div);
     laddrs.last_chat_msg = c.t;
     if (scrolldown) {
       cb.scrollTop = cb.scrollHeight;
     }
   }
+  return addedMessage;
 }
 
 // Step 7 - Update presence information when people join or leave.
@@ -522,6 +528,8 @@ function toggleSound() {
 }
 
 soundManager.url = '/s/sm2/';
+soundManager.useConsole = true;
+soundManager.consoleOnly = true;
 soundManager.useHTML5Audio = true;
 soundManager.onready(function() {
   laddrs.toastSound = soundManager.createSound({

@@ -28,6 +28,7 @@ from third_party.sc2replaylib.replay import Replay
 
 MC_EXP_SHORT=60
 MC_EXP_MED=1200
+MC_EXP_CHANNEL=7320
 MC_EXP_LONG=86400
 
 MC_PL="public-ladders_v2"
@@ -1130,7 +1131,8 @@ class ChatChannel(db.Model):
       return token
     logging.info("creating channel token for %s (%s)", client_id, user_player.name)
     token = channel.create_channel(client_id)
-    # expire before two hours which is the max age of a token.
+    # specifically expire before two hours which is the max age of a token.
+    # this is just incase GAE's expiration is fuzzy.
     mc.set(client_id, token, namespace=MC_CID, time=7100)
     mc.set(client_id, refresh, namespace=MC_TR, time=MC_EXP_SHORT)
     return token
@@ -1142,9 +1144,9 @@ class ChatChannel(db.Model):
       if channels == None:
         channels = {}
         for c in ChatChannel.gql("WHERE ANCESTOR IS :1 AND connected > :2",
-            ladder, datetime.datetime.utcnow() - datetime.timedelta(hours=2)):
+            ladder, datetime.datetime.utcnow() - datetime.timedelta(seconds=MC_EXP_CHANNEL)):
           channels[c.key().name()] = c.player_name
-        if mc.add(ladder.get_ladder_key(), channels, namespace=MC_CHANNELS, time=7200):
+        if mc.add(ladder.get_ladder_key(), channels, namespace=MC_CHANNELS, time=MC_EXP_CHANNEL):
           return mc.gets(ladder.get_ladder_key(), namespace=MC_CHANNELS)
       else:
         return channels
@@ -1182,7 +1184,7 @@ class ChatChannel(db.Model):
         cls.push_chat_history(ladder, client_id)
         return
       channels[ch.key().name()] = player.name
-      if mc.cas(ladder_name, channels, namespace=MC_CHANNELS, time=7200):
+      if mc.cas(ladder_name, channels, namespace=MC_CHANNELS, time=MC_EXP_CHANNEL):
         cls.send_chat(ladder, player, presence=True)
         cls.push_chat_history(ladder, client_id)
         return
@@ -1225,7 +1227,7 @@ class ChatChannel(db.Model):
     for i in xrange(3):
       try:
         del channels[client_id]
-        if mc.cas(ladder_name, channels, namespace=MC_CHANNELS, time=7200):
+        if mc.cas(ladder_name, channels, namespace=MC_CHANNELS, time=MC_EXP_CHANNEL):
           cls.send_chat(ladder, player, sysmsg="left ladder chat.", presence=True)
           return
       except KeyError:
