@@ -1343,7 +1343,7 @@ class ChatChannel(db.Model):
     if client_id in channels:
       if server_side:
         logging.info("received server-side ping response from %s", client_id)
-        mc.set(client_id, namespace=MC_PING, time=MC_EXP_SHORT)
+        mc.set(client_id, True, namespace=MC_PING, time=MC_EXP_SHORT)
       logging.info("pinging channel %s", client_id)
       channel.send_message(client_id, PING_MSG)
       return "OK"

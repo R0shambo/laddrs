@@ -17,6 +17,7 @@ laddrs.ladder_name = '';
 laddrs.user_id = '';
 laddrs.token = '';
 laddrs.token_refresh = false;
+laddrs.token_refreshed = false;
 laddrs.throbber = '';
 laddrs.last_chat_msg = 0;
 laddrs.first_open = true;
@@ -79,6 +80,7 @@ laddrs.GetTokenAndOpenChannel = function() {
   }
   laddrs.pinger = setTimeout("laddrs.PingChannel();", 30000);
   laddrs.Action(xhr, "get-token", { refresh: laddrs.token_refresh });
+  laddrs.token_refreshed = laddrs.token_refresh;
   laddrs.token_refresh = false;
 }
 
@@ -116,7 +118,7 @@ laddrs.ChannelOpened = function() {
     toggleChatBox(true);
     laddrs.first_open = false;
   }
-  else {
+  else if (!laddrs.token_refreshed) {
     var newdiv = document.createElement("div");
     var now = new Date();
     newdiv.className = "system";
@@ -126,6 +128,7 @@ laddrs.ChannelOpened = function() {
     cb.appendChild(newdiv);
     cb.scrollTop = cb.scrollHeight;
   }
+  laddrs.token_refreshed = false;
   laddrs.reconnect_delay = 5000;
 }
 
