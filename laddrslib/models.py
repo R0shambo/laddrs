@@ -44,6 +44,7 @@ MC_CHANNELS="channels_v1"
 MC_CHATS="chats_v1"
 MC_TR="token-refresh_v1"
 MC_PING="pings_v1"
+MC_SJ="silent-join_v1"
 
 MAX_UNFROZEN_MATCHES=500
 
@@ -1170,10 +1171,12 @@ class ChatChannel(db.Model):
 
     # don't announce channel join, if player already joined.
     if ch.key().name() in channels:
+      mc.set(client_id, True, namespace=MC_SJ, time=MC_EXP_SHORT)
+      cls.push_chat_history(ladder, client_id)
       return
 
     for i in xrange(3):
-      logging.info("current channels: %s", str(channels))
+      logging.debug("previous presence: %s", str(channels))
       # joining player already in the channel. do nothing.
       if ch.key().name() in channels:
         cls.push_chat_history(ladder, client_id)
@@ -1237,8 +1240,11 @@ class ChatChannel(db.Model):
   @classmethod
   def get_chat_history(cls, ladder, user_player, last_chat_msg):
     client_id = "%s_%s" % (ladder.get_ladder_key(), user_player.user_id)
-    cls.send_chat(ladder, user_player, sysmsg="joined ladder chat.",
-        presence=True, skip=client_id)
+    if mc.get(client_id, namespace=MC_SJ):
+      logging.info("silent join for %s", user_player.name)
+    else:
+      cls.send_chat(ladder, user_player, sysmsg="joined ladder chat.",
+          presence=True, skip=client_id)
 
     chat_history = mc.get(ladder.get_ladder_key(), namespace=MC_CHATS)
 
@@ -1249,15 +1255,13 @@ class ChatChannel(db.Model):
     if not channels:
       channels = {}
 
-    logging.info("presense: %s", str(channels))
-
     json_obj = {
       'chat': filter(lambda x: x['t'] > float(last_chat_msg), chat_history),
       'presence': sorted(channels.itervalues(), key=unicode.lower),
     }
 
     out = simplejson.dumps(json_obj)
-    logging.info(out)
+    logging.debug(out)
     return out
 
   @classmethod
@@ -1344,7 +1348,7 @@ class ChatChannel(db.Model):
       if server_side:
         logging.info("received server-side ping response from %s", client_id)
         mc.set(client_id, True, namespace=MC_PING, time=MC_EXP_SHORT)
-      logging.info("pinging channel %s", client_id)
+      logging.debug("pinging channel %s", client_id)
       channel.send_message(client_id, PING_MSG)
       return "OK"
     logging.info("not pinging disconnected channel %s", client_id)
