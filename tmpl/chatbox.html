@@ -3,7 +3,13 @@
  <a href="javascript:toggleChatBox();"><div id="chat-header">Ladder Chat</div></a>
  <div id="chatbox"></div>
  <form id="sendchatbox" onsubmit="laddrs.SendChatMsg(this);return false;" onerror="return false;" >
-   <table><tr><td><a href="javascript:togglePresence();"><img id="show-people-button" title="Show/Hide People Pane" src="/s/people.png" width="16" height="16" /></a></td><td><a href="javascript:toggleTimestamps();"><img id="show-timestamps-button" title="Show/Hide Timestamps" src="/s/clock.png" width="16" height="16" /></a></td><td width="100%"><input type="text" id="sendchatmsg" name="sendchatmsg" disabled="disabled" /></td><td><input type="submit" value="Send" disabled="disabled" /></td></tr></table>
+   <table>
+    <tr>
+     <td><a href="javascript:togglePresence();"><img id="show-people-button" title="Show/Hide People Pane" src="/s/people.png" width="16" height="16" /></a></td>
+     <td><a href="javascript:toggleTimestamps();"><img id="show-timestamps-button" title="Show/Hide Timestamps" src="/s/clock.png" width="16" height="16" /></a></td>
+     <td><a href="javascript:toggleSound();"><img style="display:none;" id="sound-button" title="Mute" src="/s/soundon.png" width="16" height="16" /></a></td>
+     <td width="100%"><input type="text" id="sendchatmsg" name="sendchatmsg" disabled="disabled" /></td>
+     <td><input type="submit" value="Send" disabled="disabled" /></td></tr></table>
  </form>
 </div>
 <div id="presence-container">

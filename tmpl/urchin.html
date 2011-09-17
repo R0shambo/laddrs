@@ -1,12 +1,17 @@
 <link rel="shortcut icon" href="/s/sc2replay-icon.png" />
 <link rel="apple-touch-icon" href="/s/sc2replay-icon.png" />
 <script type="text/javascript">
-  (function() {
-    var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true;
-    po.src = 'https://apis.google.com/js/plusone.js';
-    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
-  })();
+ var isActive = true;
+ window.onfocus = function () { isActive = true; };
+ window.onblur = function () { isActive = false; };
+
+ (function() {
+   var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true;
+   po.src = 'https://apis.google.com/js/plusone.js';
+   var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
+ })();
 </script>
+
 {%if production %}
 <script type="text/javascript">
 
@@ -20,5 +25,9 @@
     var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
   })();
 
+</script>
+{%else%}
+<script type="text/javascript">
+ var _gaq = _gaq || [];
 </script>
 {%endif%}

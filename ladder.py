@@ -14,6 +14,8 @@ from google.appengine.ext.webapp.util import run_wsgi_app
 from laddrslib import util
 from laddrslib.models import SC2Ladder, SC2Player, SC2Match
 
+SLIM = False
+
 class MainPage(webapp.RequestHandler):
   def get(self, manage, ladder_name):
     ladder = SC2Ladder.get_ladder_by_name(ladder_name)
@@ -31,10 +33,12 @@ class MainPage(webapp.RequestHandler):
       self.redirect(users.create_login_url(self.request.uri))
       return
 
-    (players, new_players, user_player) = ladder.get_players(user) #FIXME
-    #players = []
-    #new_players = []
-    #user_player = ladder.get_user_player(user)
+    if SLIM:
+      players = []
+      new_players = []
+      user_player = ladder.get_user_player(user)
+    else:
+      (players, new_players, user_player) = ladder.get_players(user) #FIXME
 
     if self.request.get('quit_ladder'):
       if user_player and util.csrf_protect(self):
@@ -74,8 +78,7 @@ class MainPage(webapp.RequestHandler):
         return
 
     matches = None
-    if ladder.matches_played:
-      #pass #FIXME
+    if ladder.matches_played and not SLIM:
       matches = ladder.get_matches(user)
 
     template_values = util.add_user_tmplvars(self, {

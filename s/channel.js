@@ -36,6 +36,7 @@ laddrs.socket = {
 };
 laddrs.sendchatenabled = false;
 laddrs.pingwait = 30000;
+laddrs.toastSound = false;
 
 // Successful Ladder Chat requires Twelve Steps. Here they are:
 
@@ -139,6 +140,12 @@ laddrs.ChannelMessaged = function(m) {
   if (msg.chat) {
     laddrs.AddChatMessages(msg.chat);
     laddrs.ThrobChatHeader();
+    if (laddrs.toastSound &&
+        (!window.isActive || document.getElementById("chatbox").style.display == 'none'))
+    {
+      console.debug("chirp!");
+      laddrs.toastSound.play();
+    }
   }
   if (msg.presence) {
     laddrs.SetPresence(msg.presence);
@@ -320,9 +327,7 @@ laddrs.SendChatMsg = function(el) {
     laddrs.pinger = setTimeout("laddrs.PingChannel();", 30000);
     laddrs.Action(null, "send-chat", params);
     input.value = "";
-    if (_gaq) {
-      _gaq.push(['_trackPageview', '/goal/chat/' + laddrs.ladder_name]);
-    }
+     _gaq.push(['_trackPageview', '/goal/chat/' + laddrs.ladder_name]);
   }
 }
 
@@ -458,3 +463,76 @@ laddrs.EnableSendChatBox = function(bool) {
     }
   }
 }
+
+function toggleChatBox(force) {
+  var box = document.getElementById("chatbox");
+  var sendbox = document.getElementById("sendchatbox");
+  var container = document.getElementById("chat-container");
+  if (force || box.style.display == "none") {
+    box.style.display = 'block';
+    box.style.width = '392px';
+    box.scrollTop = box.scrollHeight;
+    sendbox.style.display = 'block';
+    container.style.opacity = 1;
+  }
+  else {
+    box.style.display = 'none';
+    sendbox.style.display = 'none';
+    document.getElementById("presence-container").style.display = 'none';
+    container.style.opacity = 0.75;
+  }
+}
+
+function togglePresence(force) {
+  var box = document.getElementById("chatbox");
+  var presence = document.getElementById("presence-container");
+  if (force || presence.style.display != "block") {
+    presence.style.display = 'block';
+  }
+  else {
+    presence.style.display = 'none';
+  }
+}
+
+function toggleTimestamps() {
+  var cb = document.getElementById("chatbox")
+  var scrolldown = true;
+  if (cb.scrollTop < cb.scrollHeight - cb.offsetHeight) {
+    scrolldown = false;
+  }
+  var style = document.getElementById("timestamp-style");
+  style.disabled = !style.disabled;
+  if (scrolldown) {
+    cb.scrollTop = cb.scrollHeight;
+  }
+}
+
+function toggleSound() {
+  var b = document.getElementById("sound-button")
+  if (laddrs.toastSound.muted) {
+    laddrs.toastSound.unmute();
+    b.title = "Mute";
+    b.src = "/s/soundon.png";
+  }
+  else {
+    laddrs.toastSound.mute();
+    b.title = "Unmute";
+    b.src = "/s/soundoff.png";
+  }
+}
+
+soundManager.url = '/s/sm2/';
+soundManager.useHTML5Audio = true;
+soundManager.onready(function() {
+  laddrs.toastSound = soundManager.createSound({
+    id:'toastSound',
+    url:'/s/toast.mp3',
+    autoLoad: true,
+  });
+  document.getElementById("sound-button").style.display = "inline";
+  console.log("loaded toastSound %o", laddrs.toastSound);
+});
+
+//setInterval(function () {
+//  console.debug(window.isActive ? 'active' : 'inactive');
+//}, 1000);
