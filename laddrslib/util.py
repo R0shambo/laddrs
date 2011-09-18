@@ -1,21 +1,28 @@
 import base64
+import logging
 import os
 
-from google.appengine.api import app_identity
 from google.appengine.api import memcache
 from google.appengine.api import users
 
 MC_EXP_LONG=86400
 MC_ONETIME="onetime-vars"
 MC_CSRF='csrf-tokens'
+SERVER_SOFTWARE = os.getenv('SERVER_SOFTWARE')
+PRODUCTION = not SERVER_SOFTWARE.startswith('Development')
+VERSION = os.getenv('CURRENT_VERSION_ID').replace('-', '.')
+if not PRODUCTION:
+  import time
+  VERSION = "%s.%d" % (VERSION, time.time())
+logging.info("version %s loaded", VERSION)
 
 def add_user_tmplvars(handler, tmplvars, skip_onetime=False):
   user = users.get_current_user()
   tmplvars['user'] = user
   tmplvars['csrf_token'] = get_csrf_token()
   tmplvars['site_admin'] = users.is_current_user_admin()
-  tmplvars['production'] = in_production()
-  tmplvars['app_version_id'] = os.getenv('CURRENT_VERSION_ID').replace('-', '.')
+  tmplvars['production'] = PRODUCTION
+  tmplvars['app_version_id'] = VERSION
   if not skip_onetime:
     tmplvars['butter'] = get_butter()
     tmplvars['track_event'] = get_track_event()
@@ -75,13 +82,3 @@ def track_event(category, action, label, value=1):
 
 def get_track_event():
   return get_onetime('util_track_event')
-
-def in_production():
-  """Detects if app is running in production.
-
-  Returns a boolean.
-  """
-  server_software = os.getenv('SERVER_SOFTWARE')
-  if server_software is None:
-    return False
-  return not server_software.startswith('Development')

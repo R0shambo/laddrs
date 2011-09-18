@@ -56,10 +56,10 @@ class MainPage(webapp.RequestHandler):
       return
 
     if action == 'ping':
-      self.response.out.write(ChatChannel.ping(ladder, user, self.request.get('ssp')))
+      self.response.out.write(ChatChannel.ping(ladder, user, self.request.get('lpt')))
     elif action == 'get-token':
       self.response.out.write(ChatChannel.get_token(ladder, user_player,
-          self.request.get('refresh')))
+          self.request.get('version')))
     elif action == 'get-chat-history':
       self.response.out.write(ChatChannel.get_chat_history(ladder, user_player,
           self.request.get('last_chat_msg')))
@@ -97,7 +97,7 @@ class ChannelConnected(webapp.RequestHandler):
 
 class ChannelDisconnected(webapp.RequestHandler):
   def post(self):
-    ChatChannel.client_disconnected(self.request.get('from'))
+    ChatChannel.client_disconnected(self.request.get('from'), self.request.get('delay'))
 
 
 application = webapp.WSGIApplication([

@@ -15,6 +15,7 @@ else {
 
 laddrs.ladder_name = '';
 laddrs.user_id = '';
+laddrs.version = 0;
 laddrs.token = '';
 laddrs.token_refresh = false;
 laddrs.token_refreshed = false;
@@ -37,13 +38,15 @@ laddrs.socket = {
 laddrs.sendchatenabled = false;
 laddrs.pingwait = 30000;
 laddrs.toastSound = false;
+laddrs.pingtime = 0;
 
 // Successful Ladder Chat requires Twelve Steps. Here they are:
 
 // Step 1 - Start channel for the first time.
-laddrs.StartChannel = function(ladder_name, user_id) {
+laddrs.StartChannel = function(ladder_name, user_id, version) {
   laddrs.ladder_name = ladder_name;
   laddrs.user_id = user_id;
+  laddrs.version = version;
   laddrs.GetTokenAndOpenChannel();
 }
 
@@ -57,8 +60,13 @@ laddrs.GetTokenAndOpenChannel = function() {
   xhr.onreadystatechange=function() {
     if (xhr.readyState==4) {
       if (xhr.status==200) {
-        laddrs.token = xhr.responseText;
-        laddrs.OpenChannel();
+        if (xhr.responseText == 'RELOAD') {
+          window.location.reload(true);
+        }
+        else {
+          laddrs.token = xhr.responseText;
+          laddrs.OpenChannel();
+        }
       }
       else {
         var e = {
@@ -80,7 +88,7 @@ laddrs.GetTokenAndOpenChannel = function() {
     cb.scrollTop = cb.scrollHeight;
   }
   laddrs.pinger = setTimeout("laddrs.PingChannel();", 30000);
-  laddrs.Action(xhr, "get-token", { refresh: laddrs.token_refresh });
+  laddrs.Action(xhr, "get-token", { version: laddrs.version });
   laddrs.token_refreshed = laddrs.token_refresh;
   laddrs.token_refresh = false;
 }
@@ -137,6 +145,9 @@ laddrs.ChannelOpened = function() {
 laddrs.ChannelMessaged = function(m) {
   var msg = JSON.parse(m.data);
   laddrs.alive = true;
+  if (msg.ping) {
+    laddrs.pingtime = msg.ping;
+  }
   if (msg.chat) {
     if (laddrs.AddChatMessages(msg.chat) &&
         (!window.isActive || document.getElementById("chatbox").style.display == 'none')) {
@@ -186,10 +197,14 @@ laddrs.ChannelMessaged = function(m) {
     }
     console.log("Fetching chat history...");
     laddrs.Action(xhr, "get-chat-history", params);
+    if (laddrs.last_chat_msg > 0) {
+      laddrs.GetLadderUpdate();
+    }
   }
   if (msg.ping_back) {
+    laddrs.pingtime = msg.ping_back;
     console.log("Server requested a ping");
-    laddrs.PingChannel(30000, false, true);
+    laddrs.PingChannel(30000);
   }
 }
 
@@ -273,7 +288,7 @@ laddrs.GetLadderUpdate = function() {
 }
 
 // Step 9 - Repeatedly ping the channel to make sure we're still alive.
-laddrs.PingChannel = function(wait, disablesendchatbox, serversideping) {
+laddrs.PingChannel = function(wait, disablesendchatbox) {
   clearTimeout(laddrs.pinger);
   laddrs.pingwait = wait || laddrs.pingwait;
   if (laddrs.alive) {
@@ -281,8 +296,23 @@ laddrs.PingChannel = function(wait, disablesendchatbox, serversideping) {
       laddrs.EnableSendChatBox(true);
     }
     laddrs.alive = false;
+    var xhr = laddrs.XHR();
+    xhr.onreadystatechange=function() {
+      if (xhr.readyState==4) {
+        if (xhr.status!=200) {
+          var e = {
+            code: xhr.status,
+            description: "Error pinging chat server",
+          };
+          laddrs.ChannelErrored(e);
+        }
+        else if (xhr.responseText != "OK") {
+          laddrs.PingChannel();
+        }
+      }
+    };
     console.debug("Pinging channel...");
-    laddrs.Action(null, "ping", serversideping ? { ssp: true } : false);
+    laddrs.Action(xhr, "ping", { 'lpt': laddrs.pingtime });
   }
   else {
     console.error("Channel socket %o is no longer alive", laddrs.socket);
@@ -322,6 +352,7 @@ laddrs.SendChatMsg = function(el) {
     var xhr = laddrs.XHR();
     xhr.onreadystatechange=function() {
       if (xhr.readyState==4 && xhr.status!=200) {
+        input.value = msg;
         var e = {
           code: xhr.status,
           description: "Error sending chat message",

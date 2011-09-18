@@ -15,6 +15,7 @@ from django.utils import simplejson
 
 from google.appengine.api import channel
 from google.appengine.api import memcache
+from google.appengine.api import taskqueue
 from google.appengine.api import urlfetch_errors
 from google.appengine.api import users
 from google.appengine.ext import blobstore
@@ -43,9 +44,10 @@ MC_FAQS="faqs_v2"
 MC_CID="clientid_v1_%s" % os.getenv('CURRENT_VERSION_ID')
 MC_CHANNELS="channels_v1"
 MC_CHATS="chats_v1"
-MC_TR="token-refresh_v1"
-MC_PING="pings_v1"
-MC_SJ="silent-join_v1"
+MC_PING="chat-pings_v1"
+MC_SJ="silent-joins_v1"
+
+DISCONNECT_DELAY=60 if util.PRODUCTION else 20
 
 MAX_UNFROZEN_MATCHES=500
 
@@ -63,8 +65,6 @@ sc2ranks_api = Sc2Ranks("laddrs.appspot.com")
 sc2ranks_throttle = time.time()
 
 mc = memcache.Client()
-
-PING_MSG = simplejson.dumps({'ping': True})
 
 class SC2Ladder(db.Model):
   """Ladders ultimately consist of a collection of players and the
@@ -1124,18 +1124,20 @@ class ChatChannel(db.Model):
     pass
 
   @classmethod
-  def get_token(cls, ladder, user_player, refresh=False):
+  def get_token(cls, ladder, user_player, version):
     client_id = "%s_%s" % (ladder.get_ladder_key(), user_player.user_id)
+    if version != util.VERSION:
+      logging.info("client %s running older version (%s) - forcing reload",
+          client_id, version)
+      return "RELOAD"
     token = mc.get(client_id, namespace=MC_CID)
     if token:
       return token
-    logging.info("creating channel %stoken for %s (%s)",
-        'refresh ' if refresh else '', client_id, user_player.name)
+    logging.info("creating channel token for %s (%s)", client_id, user_player.name)
     token = channel.create_channel(client_id)
     # specifically expire before two hours which is the max age of a token.
     # this is just incase GAE's expiration is fuzzy.
     mc.set(client_id, token, namespace=MC_CID, time=7100)
-    mc.set(client_id, refresh, namespace=MC_TR, time=MC_EXP_SHORT)
     return token
 
   @classmethod
@@ -1155,13 +1157,14 @@ class ChatChannel(db.Model):
   @classmethod
   def client_connected(cls, client_id):
     (ladder_name, user_id) = client_id.split('_')
-    logging.info("chat client %s (%s, %s) connected", client_id, ladder_name, user_id)
     if not ladder_name or not user_id:
       raise ChatChannel.BadClientId
 
     ladder = SC2Ladder.get_ladder_by_name(ladder_name)
     player = SC2Player.gql("WHERE ANCESTOR IS :1 AND user_id = :2",
         ladder, user_id).get()
+
+    logging.info("chat connection for %s (%s) connected", player.name, client_id)
 
     channels = cls.get_channels(ladder)
 
@@ -1193,10 +1196,13 @@ class ChatChannel(db.Model):
     raise ChatChannel.FailedStoringClientConnection
 
   @classmethod
-  def client_disconnected(cls, client_id):
+  def client_disconnected(cls, client_id, delayed):
     (ladder_name, user_id) = client_id.split('_')
-    logging.info("chat client %s (%s, %s) disconnected", client_id, ladder_name, user_id)
     if not ladder_name or not user_id:
+      # If this was a delayed disconnect task, don't return an error since that
+      # would cause the task to be retried indefinitely. Just return.
+      if delayed:
+        return
       raise ChatChannel.BadClientId
 
     ladder = SC2Ladder.get_ladder_by_name(ladder_name)
@@ -1208,23 +1214,44 @@ class ChatChannel(db.Model):
     if not channels:
       return
 
-    if client_id in channels:
-      # check if disconnected channel just initiated a token refresh
-      if mc.get(client_id, namespace=MC_TR):
-        # they did! send a server-side ping and wait 10 seconds for a response.
-        cls.push_ping(ladder, client_id)
-        for i in xrange(10):
-          time.sleep(1.0)
-          if mc.get(client_id, namespace=MC_PING):
-            logging.info("server-side ping received. ignoring disconnection of %s", client_id)
-            return
-      # if we got this far, it's probably a real disconnection.
-      db.delete(db.Key.from_path('SC2Ladder', ladder_name, str(cls), client_id))
+    if not client_id in channels:
+      return
+
+    # For initial disconnect request, ask for a ping back and then set up a queued task
+    # to revisit the disconnect.
+    if not delayed:
+      logging.info("initial disconnect notice for %s (%s)", channels[client_id], client_id)
+      params = {
+        'from': client_id,
+        'delay': time.time(),
+      }
+      cls.push_ping(ladder, client_id)
+      # wait 60 seconds for reconnect.
+      taskqueue.add(url='/_ah/channel/disconnected/', params=params, countdown=DISCONNECT_DELAY)
+      return
+
+    # For delayed disconnect requests, we really mark them as disconnected if we
+    # haven't received some sign of life.
+    delayed = float(delayed)
+    logging.info("delayed (%ds) disconnect for %s (%s)", time.time() - delayed,
+        channels[client_id], client_id)
+    last_ping_time = mc.get(client_id, namespace=MC_PING)
+    # If ping response received after the initial disconnect, then we know
+    # they are (re)connected.
+    if last_ping_time and last_ping_time >= delayed:
+      logging.info("connection alive as of %ds ago, ignoring disconnect.",
+          time.time() - last_ping_time)
+      return
+
+    # otherwise they are really disconnected. announce disconnection to the channel.
+    ch = cls.get_by_key_name(client_id, parent=ladder)
+    if ch: ch.delete()
 
     # no player if player just quit ladder.
     if not player:
       player = channels[client_id]
 
+    # try three times to remove client from channels.
     for i in xrange(3):
       try:
         del channels[client_id]
@@ -1237,8 +1264,9 @@ class ChatChannel(db.Model):
     raise ChatChannel.FailedDeletingClientConnection
 
   @classmethod
-  def push_chat_history(cls, ladder, client_id,):
+  def push_chat_history(cls, ladder, client_id):
     cls.publish(ladder, {'get_chat_history': True}, only=client_id)
+    cls.push_ping(ladder, client_id)
 
   @classmethod
   def get_chat_history(cls, ladder, user_player, last_chat_msg):
@@ -1261,6 +1289,7 @@ class ChatChannel(db.Model):
     json_obj = {
       'chat': filter(lambda x: x['t'] > float(last_chat_msg), chat_history),
       'presence': sorted(channels.itervalues(), key=unicode.lower),
+      'ping': time.time(),
     }
 
     out = simplejson.dumps(json_obj)
@@ -1291,7 +1320,7 @@ class ChatChannel(db.Model):
       channels = cls.get_channels(ladder)
       if not client_id in channels:
         raise ChatChannel.FailedSendChat
-      chat['m'] = HREF_RE.sub(HREF_REPLACE, urlize(force_escape(msg[:4096])))
+      chat['m'] = HREF_RE.sub(HREF_REPLACE, urlize(force_escape(msg[:1024])))
       json_obj['chat'] = [chat]
 
     if presence:
@@ -1310,7 +1339,7 @@ class ChatChannel(db.Model):
           return cls.publish(ladder, json_obj, skip)
       else:
         chat_history.append(chat)
-        if len(chat_history) > 100:
+        if len(chat_history) > 200:
           chat_history.pop(0)
         if mc.cas(ladder.get_ladder_key(), chat_history, namespace=MC_CHATS):
           return cls.publish(ladder, json_obj, skip)
@@ -1318,6 +1347,7 @@ class ChatChannel(db.Model):
 
   @classmethod
   def publish(cls, ladder, json_obj, skip=None, only=None):
+    json_obj['ping'] = time.time()
     json_msg = simplejson.dumps(json_obj)
     channels = cls.get_channels(ladder)
     try:
@@ -1326,6 +1356,7 @@ class ChatChannel(db.Model):
           if 'presence' in json_obj:
             skip_obj = {
               'presence': json_obj['presence'],
+              'ping': json_obj['ping'],
             }
             skip_msg = simplejson.dumps(skip_obj)
             logging.info("only sending presence to %s: %s", ch, skip_msg)
@@ -1341,18 +1372,19 @@ class ChatChannel(db.Model):
 
   @classmethod
   def push_ping(cls, ladder, client_id,):
-    cls.publish(ladder, {'ping_back': True}, only=client_id)
+    logging.info("requesting ping_back from %s", client_id)
+    channel.send_message(client_id, simplejson.dumps({'ping_back': time.time()}))
 
   @classmethod
-  def ping(cls, ladder, user, server_side=False):
+  def ping(cls, ladder, user, last_ping_time):
     client_id = "%s_%s" % (ladder.get_ladder_key(), user.user_id())
     channels = cls.get_channels(ladder)
     if client_id in channels:
-      if server_side:
-        logging.info("received server-side ping response from %s", client_id)
-        mc.set(client_id, True, namespace=MC_PING, time=MC_EXP_SHORT)
+      logging.info("received ping (%s) from %s (%s)", last_ping_time,
+          channels[client_id], client_id)
+      mc.set(client_id, float(last_ping_time), namespace=MC_PING)
       logging.debug("pinging channel %s", client_id)
-      channel.send_message(client_id, PING_MSG)
+      channel.send_message(client_id, simplejson.dumps({'ping': time.time()}))
       return "OK"
     logging.info("not pinging disconnected channel %s", client_id)
     return "NOK"
