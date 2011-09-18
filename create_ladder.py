@@ -41,7 +41,7 @@ class MainPage(webapp.RequestHandler):
       if ladder:
          self.redirect('/ladder/%s' % ladder.get_ladder_key())
          util.set_butter("%s ladder created successfully!" % ladder.name)
-         util.track_pageview('/goal/ladder_create/%s' % ladder.get_ladder_key())
+         util.track_event("ladder", "create", ladder.get_ladder_key())
          return
       else:
         errormsg = "Umm... not quite sure what has gone wrong."

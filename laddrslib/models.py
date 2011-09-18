@@ -28,7 +28,7 @@ from third_party.sc2replaylib.replay import Replay
 
 MC_EXP_SHORT=60
 MC_EXP_MED=1200
-MC_EXP_CHANNEL=7320
+MC_EXP_CHANNEL=7500
 MC_EXP_LONG=86400
 
 MC_PL="public-ladders_v2"
@@ -1129,7 +1129,8 @@ class ChatChannel(db.Model):
     token = mc.get(client_id, namespace=MC_CID)
     if token:
       return token
-    logging.info("creating channel token for %s (%s)", client_id, user_player.name)
+    logging.info("creating channel %stoken for %s (%s)",
+        'refresh ' if refresh else '', client_id, user_player.name)
     token = channel.create_channel(client_id)
     # specifically expire before two hours which is the max age of a token.
     # this is just incase GAE's expiration is fuzzy.

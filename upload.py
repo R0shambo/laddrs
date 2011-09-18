@@ -55,7 +55,7 @@ class MainPage(webapp.RequestHandler):
         s = 's' if len(accepted) > 1 else ''
         util.set_butter(
             "Match replay%s accepted. Player rankings adjusted." % s)
-        util.track_pageview('/goal/match_upload/%s' % ladder.get_ladder_key())
+        util.track_event('ladder', 'match-upload', ladder.get_ladder_key(), value=len(accepted))
         self.redirect('/ladder/%s#upload' % ladder.get_ladder_key())
         return
       else:

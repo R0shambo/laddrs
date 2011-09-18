@@ -76,7 +76,7 @@ class MainPage(webapp.RequestHandler):
         'players': players,
         'new_players': new_players,
         'matches': matches,
-      })
+      }, skip_onetime=True)
       path = os.path.join(os.path.dirname(__file__), 'tmpl/players.html')
       player_data = template.render(path, template_values)
       path = os.path.join(os.path.dirname(__file__), 'tmpl/match_history.html')

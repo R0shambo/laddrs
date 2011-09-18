@@ -333,13 +333,14 @@ laddrs.SendChatMsg = function(el) {
     laddrs.pinger = setTimeout("laddrs.PingChannel();", 30000);
     laddrs.Action(null, "send-chat", params);
     input.value = "";
-     _gaq.push(['_trackPageview', '/goal/chat/' + laddrs.ladder_name]);
+    _gaq.push(['_trackEvent', 'chat', 'sent', laddrs.ladder_name]);
   }
 }
 
 // Step 11 - Handle Errors!
 laddrs.ChannelErrored = function(e) {
   console.error("channel %o errored %o", laddrs.socket, e);
+  _gaq.push(['_trackEvent', 'chat-error', e.code + ' ' + e.description, laddrs.ladder_name]);
   laddrs.EnableSendChatBox(false);
   // Code 401 is used when channel token expires.
   if (e.code == 401) {

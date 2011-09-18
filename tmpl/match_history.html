@@ -13,7 +13,7 @@
     <td class='player-portrait'>{%for player in match.losers%}{%include "player_portrait.html"%}{%endfor%}</td>
     <td><span class="hidden">{{match.mapname|lower}} </span>{{match.mapname}}</td>
     <td class="ra">{{match.duration}}</td>
-    <td class='player-portrait'><a onclick="_gaq.push(['_trackPageview', '/download/{{ladder.get_ladder_key|urlencode}}/{{match.get_match_key|urlencode}}/{{match.name|slugify}}.SC2Replay']);" href="/download/{{ladder.get_ladder_key|urlencode}}/{{match.get_match_key|urlencode}}/{{match.name|slugify}}.SC2Replay" title="Uploaded {{match.uploaded|naturalday:"M d Y"}} by {{match.uploader.name}} - v{{match.version}}"><img alt="Download Replay" src="/s/sc2replay-icon.png" height="45"/></a></td>
+    <td class='player-portrait'><a onclick="_gaq.push(['_trackPageview', '/download/{{ladder.get_ladder_key|urlencode}}/{{match.get_match_key|urlencode}}/{{match.name|slugify}}.SC2Replay']); _gaq.push(['_trackEvent', 'ladder', 'match-download', '{{ladder.get_ladder_key}}']);" href="/download/{{ladder.get_ladder_key|urlencode}}/{{match.get_match_key|urlencode}}/{{match.name|slugify}}.SC2Replay" title="Uploaded {{match.uploaded|naturalday:"M d Y"}} by {{match.uploader.name}} - v{{match.version}}"><img alt="Download Replay" src="/s/sc2replay-icon.png" height="45"/></a></td>
     {%if manage_ladder%}
      <td align="center">
       {%if match.frozen%}FROZEN{%else%}
@@ -24,7 +24,7 @@
    </tr>{%endfor%}
   </table>
   {%if matches|length > 1%}
-       <a style="margin-top:3px;padding-right:10px;float:right;text-decoration:none;color:black;font-weight:bold" onclick="_gaq.push(['_trackPageview', '/download/{{ladder.get_ladder_key|urlencode}}.zip']);" href="/download/{{ladder.get_ladder_key|urlencode}}.zip">
+       <a style="margin-top:3px;padding-right:10px;float:right;text-decoration:none;color:black;font-weight:bold" onclick="_gaq.push(['_trackPageview', '/download/{{ladder.get_ladder_key|urlencode}}.zip']); _gaq.push(['_trackEvent', 'ladder', 'match-zip-download', '{{ladder.get_ladder_key}}']);" href="/download/{{ladder.get_ladder_key|urlencode}}.zip">
     Download&nbsp;All&nbsp;{{matches|length}}&nbsp;Replays&nbsp;<img style="vertical-align:middle" src="/s/zip-icon.png" height="45" width="45" border="0" alt="Download Zip of All Replays" title="Download Zip of All Replays" /></a>
   {%endif%}
 

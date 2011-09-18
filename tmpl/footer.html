@@ -1,6 +1,6 @@
 <div id="footer">
  <hr>
- [ <a href="/">Home</a> | <a href="/faq">FAQ</a> | <a href="{{ auth_url }}">{{ auth_url_linktext|escape }}</a> ]<br><br>
+ [ <a href="/">Home</a> | <a href="/faq">FAQ</a> | <a href="{{ auth_url }}">{{ auth_url_linktext|escape }}</a> ]{%if site_admin%} v{{app_version_id}} {%if production%}PROD{%else%}DEV{%endif%}{%endif%}<br><br>
  <a href="http://code.google.com/appengine"><img style="float:right;border:0" src="http://code.google.com/appengine/images/appengine-silver-120x30.gif"
  alt="Powered by Google App Engine" /></a>Copyright 2011 SC2 Laddrs. All Rights Reserved.<br><br>
  StarCraft, StarCraft 2, and Blizzard Entertainment are trademarks or registered trademarks of Blizzard Entertainment, Inc. in the U.S. and/or other countries.

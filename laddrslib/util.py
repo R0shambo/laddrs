@@ -9,15 +9,16 @@ MC_EXP_LONG=86400
 MC_ONETIME="onetime-vars"
 MC_CSRF='csrf-tokens'
 
-def add_user_tmplvars(handler, tmplvars):
+def add_user_tmplvars(handler, tmplvars, skip_onetime=False):
   user = users.get_current_user()
   tmplvars['user'] = user
   tmplvars['csrf_token'] = get_csrf_token()
   tmplvars['site_admin'] = users.is_current_user_admin()
-  tmplvars['butter'] = get_butter()
-  tmplvars['track_pageview'] = get_track_pageview()
   tmplvars['production'] = in_production()
-  tmplvars['app_version_id'] = os.getenv('CURRENT_VERSION_ID')
+  tmplvars['app_version_id'] = os.getenv('CURRENT_VERSION_ID').replace('-', '.')
+  if not skip_onetime:
+    tmplvars['butter'] = get_butter()
+    tmplvars['track_event'] = get_track_event()
   if user:
     tmplvars['auth_url'] = users.create_logout_url(handler.request.uri)
     tmplvars['auth_url_linktext'] = 'Logout %s' % user.nickname()
@@ -63,11 +64,17 @@ def set_butter(msg):
 def get_butter():
   return get_onetime('util_butter')
 
-def track_pageview(path):
-  return set_onetime('util_track_pageview', path)
+def track_event(category, action, label, value=1):
+  event = {
+    'category': category,
+    'action': action,
+    'label': label,
+    'value': value,
+  }
+  return set_onetime('util_track_event', event)
 
-def get_track_pageview():
-  return get_onetime('util_track_pageview')
+def get_track_event():
+  return get_onetime('util_track_event')
 
 def in_production():
   """Detects if app is running in production.
