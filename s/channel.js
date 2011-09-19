@@ -64,7 +64,7 @@ laddrs.StartChannel = function(ladder_name, user_id, version) {
   window.onblur = function () {
     console.debug("window blurred")
     if (window.isActive) {
-      laddrs.idler = setTimeout("window.isIdle=true;", 180000);
+      laddrs.idler = setTimeout("window.isIdle=true;", 900000);
     }
     window.isActive = false;
   };
@@ -476,7 +476,7 @@ laddrs.Action = function(xhr, action, params) {
   if (!xhr) {
     xhr = laddrs.XHR();
   }
-  console.debug("Action: %s %o", action, params)
+  //console.debug("Action: %s %o", action, params)
   var url = "/channel/" + laddrs.ladder_name + "/" + action;
   laddrs.POST(xhr, url, params)
 };
