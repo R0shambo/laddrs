@@ -56,7 +56,10 @@ class MainPage(webapp.RequestHandler):
       return
 
     if action == 'ping':
-      self.response.out.write(ChatChannel.ping(ladder, user, self.request.get('lpt')))
+      self.response.out.write(ChatChannel.ping(ladder, user_player, self.request.get('lpt'),
+          idle=self.request.get('idle')))
+    elif action == 'idle':
+      self.response.out.write(ChatChannel.idle(ladder, user_player, self.request.get('idle')))
     elif action == 'get-token':
       self.response.out.write(ChatChannel.get_token(ladder, user_player,
           self.request.get('version')))

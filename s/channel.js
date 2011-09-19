@@ -39,6 +39,7 @@ laddrs.sendchatenabled = false;
 laddrs.pingwait = 30000;
 laddrs.toastSound = false;
 laddrs.pingtime = 0;
+laddrs.idler = false;
 
 // Successful Ladder Chat requires Twelve Steps. Here they are:
 
@@ -48,6 +49,26 @@ laddrs.StartChannel = function(ladder_name, user_id, version) {
   laddrs.user_id = user_id;
   laddrs.version = version;
   laddrs.GetTokenAndOpenChannel();
+
+  window.isActive = true;
+  window.isIdle = false;
+  window.onfocus = function () {
+    console.debug("window focused")
+    clearTimeout(laddrs.idler);
+    if (window.isIdle) {
+      window.isIdle = false;
+      laddrs.Action(null, "idle");
+    }
+    window.isActive = true;
+  };
+  window.onblur = function () {
+    console.debug("window blurred")
+    if (window.isActive) {
+      laddrs.idler = setTimeout("window.isIdle=true;", 180000);
+    }
+    window.isActive = false;
+  };
+  //setInterval("console.log('active:%s idle:%s', window.isActive, window.isIdle);", 5000);
 }
 
 // Step 2 - Get token for opening the channel.
@@ -228,6 +249,9 @@ laddrs.AddChatMessages = function(chat) {
     if (c['s']) {
       div.className = "system";
       div.innerHTML = c.n + " " + c.s
+      if (!c.s.match(/^(left|is idle)/)) {
+        addedMessage = true;
+      }
     }
     else if (c['m']) {
       div.className = "message";
@@ -244,11 +268,11 @@ laddrs.AddChatMessages = function(chat) {
       div.appendChild(ts);
       div.appendChild(name);
       div.appendChild(text);
+      addedMessage = true;
     }
     else {
       continue;
     }
-    addedMessage = true;
     cb.appendChild(div);
     laddrs.last_chat_msg = c.t;
     if (scrolldown) {
@@ -263,12 +287,17 @@ laddrs.SetPresence = function(presence) {
   var div = document.getElementById("chat-presence");
   div.innerHTML = "";
   for (var i in presence) {
-    var name = presence[i];
+    var name = presence[i][0];
     var player = document.createElement("div")
     if (!laddrs.colors[name]) {
       laddrs.colors[name] = laddrs.PickColor();
     }
     player.style.color = laddrs.colors[name];
+    if (presence[i][1]) {
+      var t = new Date(presence[i][1] * 1000);
+      player.style.fontStyle = 'italic';
+      player.title = "Idle since " + t.toLocaleDateString() + " " + t.toLocaleTimeString();
+    }
     player.innerHTML = name;
     div.appendChild(player);
   }
@@ -443,9 +472,11 @@ laddrs.Action = function(xhr, action, params) {
     params = {};
   }
   params.user_id = laddrs.user_id;
+  params.idle = window.isIdle ? true : '';
   if (!xhr) {
     xhr = laddrs.XHR();
   }
+  console.debug("Action: %s %o", action, params)
   var url = "/channel/" + laddrs.ladder_name + "/" + action;
   laddrs.POST(xhr, url, params)
 };

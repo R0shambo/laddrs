@@ -46,6 +46,7 @@ MC_CHANNELS="channels_v1"
 MC_CHATS="chats_v1"
 MC_PING="chat-pings_v1"
 MC_SJ="silent-joins_v1"
+MC_IDLE="idlers_v1"
 
 DISCONNECT_DELAY=60 if util.PRODUCTION else 20
 
@@ -1155,6 +1156,14 @@ class ChatChannel(db.Model):
         return channels
 
   @classmethod
+  def get_presence(cls, ladder, channels=None):
+    channels = channels or cls.get_channels(ladder)
+    presence = []
+    for i, n in sorted(channels.iteritems(), key=lambda t: unicode.lower(t[1])):
+      presence.append([n, mc.get(i, namespace=MC_IDLE)])
+    return presence
+
+  @classmethod
   def client_connected(cls, client_id):
     (ladder_name, user_id) = client_id.split('_')
     if not ladder_name or not user_id:
@@ -1246,6 +1255,7 @@ class ChatChannel(db.Model):
     # otherwise they are really disconnected. announce disconnection to the channel.
     ch = cls.get_by_key_name(client_id, parent=ladder)
     if ch: ch.delete()
+    mc.delete(client_id, namespace=MC_IDLE)
 
     # no player if player just quit ladder.
     if not player:
@@ -1288,7 +1298,7 @@ class ChatChannel(db.Model):
 
     json_obj = {
       'chat': filter(lambda x: x['t'] > float(last_chat_msg), chat_history),
-      'presence': sorted(channels.itervalues(), key=unicode.lower),
+      'presence': cls.get_presence(ladder, channels),
       'ping': time.time(),
     }
 
@@ -1298,7 +1308,7 @@ class ChatChannel(db.Model):
 
   @classmethod
   def send_chat(cls, ladder, user_player, msg=None, sysmsg=None, ladder_updated=False,
-      presence=False, skip=None):
+      presence=False, skip=None, history=True):
     try:
       player_name = user_player.name
     except AttributeError:
@@ -1320,16 +1330,22 @@ class ChatChannel(db.Model):
       channels = cls.get_channels(ladder)
       if not client_id in channels:
         raise ChatChannel.FailedSendChat
+      cls.idle(ladder, user_player, False)
       chat['m'] = HREF_RE.sub(HREF_REPLACE, urlize(force_escape(msg[:1024])))
       json_obj['chat'] = [chat]
 
     if presence:
-      json_obj['presence'] = sorted(cls.get_channels(ladder).itervalues(), key=unicode.lower)
+      json_obj['presence'] = cls.get_presence(ladder)
 
     if ladder_updated:
       json_obj['ladder_updated'] = True
 
     logging.info("send_chat %s", str(json_obj))
+
+    # if history is false, don't save to chat history.
+    if not history:
+      return cls.publish(ladder, json_obj, skip)
+
     for i in xrange(10):
       chat_history = mc.gets(ladder.get_ladder_key(), namespace=MC_CHATS)
       if not chat_history:
@@ -1376,8 +1392,8 @@ class ChatChannel(db.Model):
     channel.send_message(client_id, simplejson.dumps({'ping_back': time.time()}))
 
   @classmethod
-  def ping(cls, ladder, user, last_ping_time):
-    client_id = "%s_%s" % (ladder.get_ladder_key(), user.user_id())
+  def ping(cls, ladder, user_player, last_ping_time, idle):
+    client_id = "%s_%s" % (ladder.get_ladder_key(), user_player.user_id)
     channels = cls.get_channels(ladder)
     if client_id in channels:
       logging.info("received ping (%s) from %s (%s)", last_ping_time,
@@ -1385,9 +1401,26 @@ class ChatChannel(db.Model):
       mc.set(client_id, float(last_ping_time), namespace=MC_PING)
       logging.debug("pinging channel %s", client_id)
       channel.send_message(client_id, simplejson.dumps({'ping': time.time()}))
+      cls.idle(ladder, user_player, idle, channels)
       return "OK"
     logging.info("not pinging disconnected channel %s", client_id)
     return "NOK"
+
+  @classmethod
+  def idle(cls, ladder, user_player, idle, channels=None):
+    client_id = "%s_%s" % (ladder.get_ladder_key(), user_player.user_id)
+    channels = channels or cls.get_channels(ladder)
+    if client_id in channels:
+      preidle = mc.get(client_id, namespace=MC_IDLE)
+      # only send a message if the state has changed.
+      if idle and not preidle:
+        logging.info("%s (%s) is now idle", user_player.name, client_id)
+        mc.set(client_id, time.time(), namespace=MC_IDLE)
+        cls.send_chat(ladder, user_player, sysmsg="is idle.", presence=True, history=False)
+      elif preidle and not idle:
+        logging.info("%s (%s) is no longer idle", user_player.name, client_id)
+        mc.set(client_id, False, namespace=MC_IDLE)
+        cls.send_chat(ladder, user_player, sysmsg="is back.", presence=True, history=False)
 
 
 class FaqEntry(db.Model):
