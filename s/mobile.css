@@ -1,0 +1,171 @@
+html, body {
+  font-family: Verdana, Helvetica, sans-serif;
+  background-color: #000;
+  color: #fff;
+  height: auto;
+	margin:0;
+	padding:0;
+  font-size: 90%;
+  max-width: 320px;
+}
+
+div#container {
+	position: auto;
+  min-height: auto;
+  max-width: 320px;
+  padding-bottom: 8em;
+}
+
+div#footer {
+  position: auto;
+  font-size: 60%;
+  width: auto;
+  bottom: auto;
+}
+
+div#butter {
+  left: 2em;
+}
+
+a {
+  color: #ddf;
+}
+
+form a, table a, ol a {
+  color: #008;
+}
+
+div.answer {
+  max-width: auto;
+  margin-left: 1em;
+  margin-right: 1em;
+}
+
+table.player-portrait {
+  width: 100%;
+}
+
+td.player-portrait {
+  padding: 0 !important;
+  border-spacing: 0;
+}
+
+td.player-portrait td.player-name {
+  padding: 1px 4px 1px 4px !important;
+}
+
+table.sortable {
+  background-color: #555;
+  border: 1px solid #555;
+  margin: 2px;
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+  border-spacing: 0;
+  box-shadow: 0 0 4px #888;
+}
+
+table.sortable th {
+  padding: 4px 4px;
+  background-color: #555;
+  color: #fff;
+  cursor: pointer;
+  font-size: 60%;
+}
+
+table.sortable th:first-child {
+  border-top-left-radius: 18px;
+  padding-left: 9px;
+}
+table.sortable th:last-child, .mthr {
+  border-top-right-radius: 18px;
+  padding-right: 9px;
+}
+
+table.sortable > tbody > tr:last-child td:first-child {
+  border-bottom-left-radius: 2px;
+}
+table.sortable > tbody > tr:last-child td:last-child {
+  border-bottom-right-radius: 2px;
+}
+
+table.sortable td {
+  padding: 1px 4px 1px 4px;
+  font-size: 70%;
+}
+
+form, div.contents, div.form {
+  max-width: 300px;
+  color: #000;
+  border: 1px solid #000;
+  border-radius: 4px;
+  box-shadow: 0 0 4px #888;
+  background-color: #fff;
+  margin: 2px;
+  padding: 4px;
+  display: inline-block;
+}
+
+div.form form, form.faq {
+  border: 0;
+  background-color: inherit;
+  display: block;
+  box-shadow: none;
+}
+
+div.player_info form, form.faq {
+  margin: 0px;
+  padding: 0px;
+}
+
+form#player_info_form {
+  margin-top: 0.5em;
+}
+
+form.search {
+  margin-left: 2em;
+  padding: 4px;
+}
+
+.current_user * {
+  font-weight: bold;
+  background-color: #eef !important;
+}
+
+.description, .details {
+  font-style: italic;
+  padding-left: 13px;
+  max-width: auto;
+}
+
+.details {
+  font-size: 70%;
+}
+
+.error {
+  padding: 4px;
+  border-radius: 4px;
+  color: #000;
+}
+
+.icon-frame, div#match_history img {
+  display: none;
+}
+
+textarea, input {
+  max-width: 98%;
+  max-height: 200px;
+}
+
+div#match_upload {
+  display: none;
+}
+
+.mh {
+  display: none;
+}
+
+form#contact-us {
+  max-width: 280px;
+}

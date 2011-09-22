@@ -3,7 +3,7 @@
  <h2>Match History</h2>
   <div style="display:inline-block">
   {%if matches%}
-  <table class="sortable"><tr><th>Date</th><th>Winner</th><th>Loser</th><th>Map</th><th>Duration</th><th>D/L</th>{%if manage_ladder%}<th>Admin</th>{%endif%}</tr>
+  <table class="sortable"><tr><th>Date</th><th>Winner</th><th>Loser</th><th class="mthr">Map</th><th class="mh">Duration</th><th class="mh">D/L</th>{%if manage_ladder%}<th>Admin</th>{%endif%}</tr>
    {% for match in matches %}
     <tr {%if match.you_won %}class="user_win"{%else%}
         {%if match.you_lost %}class="user_loss"{%endif%}{%endif%}>
@@ -12,8 +12,8 @@
     <td class='player-portrait'>{%for player in match.winners%}{%include "player_portrait.html"%}{%endfor%}</td>
     <td class='player-portrait'>{%for player in match.losers%}{%include "player_portrait.html"%}{%endfor%}</td>
     <td><span class="hidden">{{match.mapname|lower}} </span>{{match.mapname}}</td>
-    <td class="ra">{{match.duration}}</td>
-    <td class='player-portrait'><a onclick="_gaq.push(['_trackPageview', '/download/{{ladder.get_ladder_key|urlencode}}/{{match.get_match_key|urlencode}}/{{match.name|slugify}}.SC2Replay']); _gaq.push(['_trackEvent', 'ladder', 'match-download', '{{ladder.get_ladder_key}}']);" href="/download/{{ladder.get_ladder_key|urlencode}}/{{match.get_match_key|urlencode}}/{{match.name|slugify}}.SC2Replay" title="Uploaded {{match.uploaded|naturalday:"M d Y"}} by {{match.uploader.name}} - v{{match.version}}"><img alt="Download Replay" src="/s/sc2replay-icon.png" height="45"/></a></td>
+    <td class="ra mh">{{match.duration}}</td>
+    <td class='player-portrait mh'><a onclick="_gaq.push(['_trackPageview', '/download/{{ladder.get_ladder_key|urlencode}}/{{match.get_match_key|urlencode}}/{{match.name|slugify}}.SC2Replay']); _gaq.push(['_trackEvent', 'ladder', 'match-download', '{{ladder.get_ladder_key}}']);" href="/download/{{ladder.get_ladder_key|urlencode}}/{{match.get_match_key|urlencode}}/{{match.name|slugify}}.SC2Replay" title="Uploaded {{match.uploaded|naturalday:"M d Y"}} by {{match.uploader.name}} - v{{match.version}}"><img alt="Download Replay" src="/s/sc2replay-icon.png" height="45"/></a></td>
     {%if manage_ladder%}
      <td align="center">
       {%if match.frozen%}FROZEN{%else%}

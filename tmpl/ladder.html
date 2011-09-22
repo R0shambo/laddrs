@@ -3,13 +3,14 @@
 <head>
  <title>{{ladder.name}} - SC2 Laddrs!</title>
  <meta name="description" content="{%if ladder.public or user_player %}{{ladder.description}}{%endif%} This is a {%if ladder.public %}public {%if ladder.invite_only %}invite-only {{ladder.region|upper}} ladder.{%else%}{{ladder.region|upper}} Starcraft 2 ladder.{%endif%}{%else%}private {{ladder.region|upper}} Starcraft 2 ladder.{%endif%}" />
- <link type="text/css" rel="stylesheet" href="/s/main.css" />
- <script src="/s/sorttable.js"></script>
- <script src="/s/misc.js"></script>
- <script src="/s/sm2/soundmanager2-nodebug-jsmin.js"></script>
- <script src='/_ah/channel/jsapi'></script>
- <script src='/s/channel.js'></script>
  {%include "urchin.html"%}
+ <script type="text/javascript">
+  // <!--
+  if (!window.isMobileBrowser) {
+    document.write('<script src="/s/misc.js"></script><script src="/s/sm2/soundmanager2-nodebug-jsmin.js"></script><script src="/_ah/channel/jsapi"></script><script src="/s/channel.js"></script>');
+  }
+  // -->
+ </script>
  <style id="timestamp-style">#chatbox .ts { display: none; }</style>
 </head>
 <body {%include "tracking.html"%}>
@@ -47,7 +48,7 @@
   {%else%}
 
    {%if user_player %}
-    <div class="rhs" style="float:right;min-width:500px">
+    <div class="rhs mh" style="float:right;min-width:500px">
      <div style="text-align:right">
       <div class="player_info form" style="text-align:left;max-width:400px">
        <input style="float:right" type="button" value="{%if ladder.public%}show{%else%}{%if user_player.nickname%}show{%else%}hide{%endif%}{%endif%}" onclick='this.value=this.value=="show"?"hide":"show";toggle_visibility("player_info_form");' />
@@ -85,6 +86,7 @@
      private {{ladder.region|upper}} ladder. {%if user_player%}Invite-code for new players: {{ladder.invite_code}}{%endif%}
     {%endif%}
     {%if user_player.admin%}<br><br>You are an admin for this ladder.
+    <span class="mh">
     [{%if manage_ladder%}
       <a href="/ladder/{{ladder.get_ladder_key}}">Stop Managing Ladder</a>
      {%else%}
@@ -92,6 +94,7 @@
      {%endif%}
     ]
     {%endif%}
+    </span>
    </div>
   {%endif%}
 
@@ -100,7 +103,9 @@
   <div id="match_history">{%include "match_history.html"%}</div>
 
   {%if user_player %}
+   <div id="match_upload">
    {%include "upload_match.html"%}
+   </div>
   {%else%}
    <a name="join"></a>
    <h3>Join This Ladder</h3>

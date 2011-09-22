@@ -45,6 +45,11 @@ laddrs.idler = false;
 
 // Step 1 - Start channel for the first time.
 laddrs.StartChannel = function(ladder_name, user_id, version) {
+  // Do not open chat on mobile browsers.
+  if (window.isMobileBrowser) {
+    return;
+  }
+
   laddrs.ladder_name = ladder_name;
   laddrs.user_id = user_id;
   laddrs.version = version;

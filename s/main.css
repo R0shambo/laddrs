@@ -1,6 +1,7 @@
 html, body {
   font-family: Verdana, Helvetica, sans-serif;
   background-color: #ddd;
+  color: #000;
   height: 100%;
 	margin:0;
 	padding:0;
@@ -30,6 +31,7 @@ div#footer {
 
 div#butter {
   background-color: #ffd;
+  color: #000;
   padding: 5px 10px;
   position: fixed;
   top: 0;
@@ -289,13 +291,15 @@ table.sortable > tbody > tr:last-child td:last-child {
 table.sortable td {
   padding: 2px 5px 2px 5px;
   vertical-align: middle;
-  background-color: white;
+  background-color: #fff;
+  color: #000;
   border: 1px solid #efefef;
   box-sizing: border-box;
 }
 
 table th {
   background-color: #eee
+  color: #000;
 }
 
 form, div.contents, div.form {
@@ -303,6 +307,7 @@ form, div.contents, div.form {
   border-radius: 5px;
   box-shadow: 0 0 5px #888;
   background-color: #fff;
+  color: #000;
   margin: 5px;
   padding: 10px;
   display: inline-block;
@@ -403,6 +408,7 @@ ol {
 
 .error {
   background-color: #fdd;
+  color: #000;
   margin: 1em;
   padding: 5px;
   border-radius: 5px;
@@ -415,11 +421,6 @@ ol {
 .icon-frame {
   float: left;
   margin-right: 5px;
-  dislay: table-cell;
-}
-
-.row2 {
-  background-color: #fbfbfb;
 }
 
 .user_loss * {

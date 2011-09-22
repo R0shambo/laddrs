@@ -5,8 +5,6 @@
  <title>SC2 Laddrs!</title>
  <meta name="description" content="SC2 Laddrs is a Starcraft 2 competitive ladder site. Starcraft 2 players can create and join any number of public or private ladders. Match results are determined directly by replay uploads. No manual entry of match results required. Players are ranked using the Glicko2 rating system." />
  <meta name="keywords" content="Starcraft, Starcraft 2, Ladder, Private, Hosting" />
- <link type="text/css" rel="stylesheet" href="/s/main.css" />
- <script src="/s/sorttable.js"></script>
  {%include "urchin.html"%}
 </head>
 <body>
@@ -21,7 +19,7 @@
    <h2>{{user.nickname|capfirst}}'s Ladders</h2>
    {% if user_ladders %}
     <table class="sortable">
-     <tr><th>Ladder</th><th>Rank</th><th>Wins</th><th>Losses</th><th>Players</th><th>Region</th><th>Description</th></tr>
+     <tr><th>Ladder</th><th>Rank</th><th>W<span class="mh">ins</span></th><th>L<span class="mh">osses</span></th><th class="mthr">Players</th><th class="mh">Region</th><th class="mh">Description</th></tr>
      {% for ladder in user_ladders|dictsort:"name" %}
       <tr>
        <td><a href="/ladder/{{ladder.get_ladder_key|urlencode}}">{{ladder.name}}</a></td>
@@ -29,8 +27,8 @@
        <td align="right">{{ladder.user_player.wins}}</td>
        <td align="right">{{ladder.user_player.losses}}</td>
        <td align="right">{{ ladder.players }}</td>
-      <td>{{ ladder.region|upper }}
-       <td>{{ladder.description|truncatewords:12|urlizetrunc:15}}</td>
+      <td class="mh">{{ ladder.region|upper }}
+       <td class="mh">{{ladder.description|truncatewords:12|urlizetrunc:15}}</td>
       </tr>
      {% endfor %}
     </table>

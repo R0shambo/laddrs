@@ -4,7 +4,6 @@
  <title>SC2 Laddrs! - Frequently Asked Questions</title>
  <meta name="description" content="Starcraft 2 Player Ladder Hosting Service" />
  <meta name="keywords" content="Starcraft, Starcraft 2, Ladder, Private, Hosting" /> <link type="text/css" rel="stylesheet" href="/s/main.css" />
- <script src="/s/sorttable.js"></script>
  {%include "urchin.html"%}
 </head>
 <body>
@@ -59,7 +58,7 @@
    <div class="answer">Contact SC2 Laddrs Support using the form below!
    {% if user %}
     {% if errormsg %}<div class="error">{% include "tableflipper.html" %} {{errormsg|escape}}</div>{%endif%}
-    <form action="/faq#what-if-my-question-is-not-answered" method="post" enctype="multipart/form-data">
+    <form id="contact-us" action="/faq#what-if-my-question-is-not-answered" method="post" enctype="multipart/form-data">
      <input type="hidden" name="csrf_token" value="{{csrf_token}}" />
      <!-- {{ category }} -->
      <div>Category: <select name="category">

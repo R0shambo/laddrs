@@ -2,7 +2,7 @@
 {%if ladder.public or user_player %}
  {%if players%}
   <h2>Players</h2>
-  <table class="sortable"><tr><th>Rank</th><th>Player</th>{%if user_player%}<th>Nickname</th>{%endif%}<th>Rating</th><th>Wins</th><th>Losses</th><th>Last Played</th>{%if manage_ladder%}<th>Admin</th>{%endif%}</tr>
+  <table class="sortable"><tr><th>Rank</th><th>Player</th>{%if user_player%}<th>Nick<span class="mh">name</span></th>{%endif%}<th>Rating</th><th>W<span class="mh">ins</span></th><th class="mthr">L<span class="mh">osses</span></th><th class="mh">Last Played</th>{%if manage_ladder%}<th>Admin</th>{%endif%}</tr>
    {% for player in players|dictsortreversed:"fuzzy_rating" %}<tr {%if player.this_is_you %}class="current_user"{%endif%}>
     <td align="center"><span class="hidden">{{forloop.counter|stringformat:"03d"}} </span>{{forloop.counter|ordinal}}</td>
     <td class='player-portrait'>{%include "player_portrait.html"%}</td>
@@ -10,7 +10,7 @@
     <td class="ra">{{player.fuzzy_rating|floatformat:0}}</td>
     <td class="ra">{{player.wins}}</td>
     <td class="ra">{{player.losses}}</td>
-    <td title="{{player.last_played}}"><span class="hidden">{{player.last_played|date:"YmdHis"}} </span>{{player.last_played|naturalday:"M d Y"|capfirst}}</td>
+    <td class="mh" title="{{player.last_played}}"><span class="hidden">{{player.last_played|date:"YmdHis"}} </span>{{player.last_played|naturalday:"M d Y"|capfirst}}</td>
     {%if manage_ladder%}
      <td align="center">
       {%if not player.this_is_you%}

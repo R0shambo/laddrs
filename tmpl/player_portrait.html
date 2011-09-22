@@ -6,8 +6,8 @@
  {%else%}
   <img class="icon-frame" src="/s/lulz-face.png">
  {%endif%}
-</td><td width="100%">
- {{player.name}}{%if user_player%}.{{player.code}}{%endif%}&nbsp;
+</td><td class="player-name" width="100%">
+ <a href="http://sc2ranks.com/char/{{ladder.region}}/{{player.bnet_id}}/{{player.name}}">{{player.name}}{%if user_player%}.{{player.code}}{%endif%}</a>&nbsp;
 </td>
 {%if player.race%}<td width="45">
  <img style="background-color: {{player.color|cut:" "}} !important;" width="45" height="45" src="/s/{{player.race|lower|cut:" "}}.png" title="{{player.color}} {{player.race}}"/>

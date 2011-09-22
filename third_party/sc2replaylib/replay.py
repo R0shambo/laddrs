@@ -262,7 +262,7 @@ class Replay:
     :rtype: String --- Raw
     """
 
-    return self.parsers['header'].parse()[3] / 22
+    return self.parsers['header'].parse()[3] / 16
 
 
   def timestamp(self):
