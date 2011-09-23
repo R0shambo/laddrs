@@ -15,7 +15,7 @@ from laddrslib.models import SC2Ladder, SC2Player, SC2Match
 
 class MainPage(webapp.RequestHandler):
   def get(self, ladder_name):
-    self.redirect("/")
+    self.redirect("/ladder/%s" % ladder_name)
 
   def post(self, ladder_name):
     ladder = SC2Ladder.get_ladder_by_name(ladder_name)
@@ -43,37 +43,25 @@ class MainPage(webapp.RequestHandler):
     if hasattr(self.request.POST["replay_file"], 'filename'):
       filename = self.request.POST["replay_file"].filename
 
-    rejected = []
-
     if util.csrf_protect(self):
       (accepted, rejected) = ladder.add_matches(user_player,
           self.request.params.getall('replay_file'),
           force=self.request.get('force_upload'))
+      util.set_onetime('uploads_accepted', accepted)
+      util.set_onetime('uploads_rejected', rejected)
       if accepted and len(accepted) > 0:
-        util.set_onetime('uploads_accepted', accepted)
-        util.set_onetime('uploads_rejected', rejected)
         s = 's' if len(accepted) > 1 else ''
         util.set_butter(
             "Match replay%s accepted. Player rankings adjusted." % s)
         util.track_event('ladder', 'match-upload', ladder.get_ladder_key(), value=len(accepted))
-        self.redirect('/ladder/%s#upload' % ladder.get_ladder_key())
-        return
       else:
         s = 's' if len(rejected) > 1 else ''
-        errormsg = "No replay%s accepted." % s
+        util.set_onetime('errormsg', "No replay%s accepted." % s)
 
     else:
-      errormsg = "Session timed out."
+      util.set_onetime('errormsg', "Session timed out.")
 
-    template_values = util.add_user_tmplvars(self, {
-      'errormsg': errormsg,
-      'ladder': ladder,
-      'user_player': user_player,
-      'uploads_rejected': rejected,
-    })
-
-    path = os.path.join(os.path.dirname(__file__), 'tmpl/upload.html')
-    self.response.out.write(template.render(path, template_values))
+    self.redirect('/ladder/%s#upload' % ladder.get_ladder_key())
 
 
 application = webapp.WSGIApplication([

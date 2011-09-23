@@ -26,6 +26,8 @@ def add_user_tmplvars(handler, tmplvars, skip_onetime=False):
   if not skip_onetime:
     tmplvars['butter'] = get_butter()
     tmplvars['track_event'] = get_track_event()
+    if not 'errormsg' in tmplvars:
+      tmplvars['errormsg'] = get_onetime('errormsg')
   if user:
     tmplvars['auth_url'] = users.create_logout_url(handler.request.uri)
     tmplvars['auth_url_linktext'] = 'Logout %s' % user.nickname()
