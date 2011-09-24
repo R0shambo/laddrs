@@ -1,0 +1,4 @@
+cron:
+- description: chat history keep alive
+  url: /cron/chat-keep-alive
+  schedule: every 30 minutes

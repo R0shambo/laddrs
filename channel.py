@@ -103,10 +103,16 @@ class ChannelDisconnected(webapp.RequestHandler):
     ChatChannel.client_disconnected(self.request.get('from'), self.request.get('delay'))
 
 
+class ChannelKeepAlive(webapp.RequestHandler):
+  def get(self):
+    ChatChannel.history_keepalive()
+
+
 application = webapp.WSGIApplication([
   ('/channel/([^/]+)/([^/]+)', MainPage),
   ('/_ah/channel/connected/', ChannelConnected),
   ('/_ah/channel/disconnected/', ChannelDisconnected),
+  ('/cron/chat-keep-alive', ChannelKeepAlive),
 ], debug=True)
 
 

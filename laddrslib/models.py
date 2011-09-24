@@ -1423,6 +1423,13 @@ class ChatChannel(db.Model):
         cls.send_chat(ladder, user_player, sysmsg="is back.", presence=True, history=False)
 
 
+  @classmethod
+  def history_keepalive(cls):
+    ladder_keys = SC2Ladder.all(keys_only=True)
+    for key in ladder_keys:
+      logging.info("keeping alive chat history for %s", key.name())
+      h = mc.get(key.name(), namespace=MC_CHATS)
+
 class FaqEntry(db.Model):
   question = db.StringProperty(required=True)
   answer = db.TextProperty(required=True)

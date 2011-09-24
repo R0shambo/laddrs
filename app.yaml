@@ -32,6 +32,9 @@ handlers:
   script: channel.py
   login: required
 
+- url: /cron/chat-keep-alive
+  script: channel.py
+
 - url: /create_ladder
   script: create_ladder.py
   login: required
