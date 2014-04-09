@@ -1,5 +1,5 @@
 application: laddrs
-version: 6-0-0
+version: 5-1-0
 runtime: python27
 api_version: 1
 threadsafe: true
