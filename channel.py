@@ -3,11 +3,11 @@ import os
 import re
 import time
 import urllib
+import webapp2
 
 from google.appengine.api import channel
 from google.appengine.api import users
 from google.appengine.ext import db
-from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template
 from google.appengine.ext.webapp.util import run_wsgi_app
 
@@ -16,7 +16,7 @@ from laddrslib.models import SC2Ladder, SC2Player, SC2Match, ChatChannel
 
 from django.utils import simplejson
 
-class MainPage(webapp.RequestHandler):
+class MainPage(webapp2.RequestHandler):
   def get(self, ladder_name, action):
     if users.is_current_user_admin():
       template_values = util.add_user_tmplvars(self, {
@@ -93,32 +93,24 @@ class MainPage(webapp.RequestHandler):
       self.response.out.write("NOK")
 
 
-class ChannelConnected(webapp.RequestHandler):
+class ChannelConnected(webapp2.RequestHandler):
   def post(self):
     ChatChannel.client_connected(self.request.get('from'))
 
 
-class ChannelDisconnected(webapp.RequestHandler):
+class ChannelDisconnected(webapp2.RequestHandler):
   def post(self):
     ChatChannel.client_disconnected(self.request.get('from'), self.request.get('delay'))
 
 
-class ChannelKeepAlive(webapp.RequestHandler):
+class ChannelKeepAlive(webapp2.RequestHandler):
   def get(self):
     ChatChannel.history_keepalive()
 
 
-application = webapp.WSGIApplication([
+app = webapp2.WSGIApplication([
   ('/channel/([^/]+)/([^/]+)', MainPage),
   ('/_ah/channel/connected/', ChannelConnected),
   ('/_ah/channel/disconnected/', ChannelDisconnected),
   ('/cron/chat-keep-alive', ChannelKeepAlive),
 ], debug=True)
-
-
-def main():
-  run_wsgi_app(application)
-
-
-if __name__ == '__main__':
-  main()

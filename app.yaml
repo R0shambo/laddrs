@@ -1,8 +1,15 @@
 application: laddrs
-version: 5-0-0
-runtime: python
+version: 6-0-0
+runtime: python27
 api_version: 1
+threadsafe: true
 
+libraries:
+- name: django
+  version: "1.2"
+- name: webapp2
+  version: "2.5.2"
+ 
 builtins:
 - appstats: on
 
@@ -23,46 +30,46 @@ handlers:
   upload: s/robots.txt
 
 - url: /_ah/channel/connected/
-  script: channel.py
+  script: channel.app
 
 - url: /_ah/channel/disconnected/
-  script: channel.py
+  script: channel.app
 
 - url: /channel/.*
-  script: channel.py
+  script: channel.app
   login: required
 
 - url: /cron/chat-keep-alive
-  script: channel.py
+  script: channel.app
 
 - url: /create_ladder
-  script: create_ladder.py
+  script: create_ladder.app
   login: required
 
 - url: /ladder/.*
-  script: ladder.py
+  script: ladder.app
 
 - url: /manage_ladder/.*
-  script: ladder.py
+  script: ladder.app
 
 - url: /join_ladder/.*
-  script: join_ladder.py
+  script: join_ladder.app
 
 - url: /upload/.*
-  script: upload.py
+  script: upload.app
 
 - url: /replay_debug
-  script: replay_debug.py
+  script: replay_debug.app
   login: required
 
 - url: /download/.*
-  script: download.py
+  script: download.app
 
 - url: /faq
-  script: faq.py
+  script: faq.app
 
 - url: /_ah/warmup
-  script: main.py
+  script: main.app
 
 - url: /
-  script: main.py
+  script: main.app
